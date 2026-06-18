@@ -1,10 +1,6 @@
-// Angular Modules
-import { inject, Injectable } from '@angular/core';
+import { computed, inject, Injectable, signal } from '@angular/core';
 
-// App Config
 import { darkModeClass } from '../../app.config';
-
-// Services
 import { SessionKeys, SessionService } from '../session/session.service';
 
 /**
@@ -15,7 +11,7 @@ import { SessionKeys, SessionService } from '../session/session.service';
  */
 export enum ThemeMode {
     Light,
-    Dark
+    Dark,
 }
 
 /**
@@ -35,7 +31,7 @@ export class ThemeService {
      * @type {SessionService}
      * @memberof ThemeService
      */
-    private sessionService: SessionService = inject(SessionService);
+    private readonly sessionService: SessionService = inject(SessionService);
 
     /**
      * Icon representing light mode.
@@ -59,10 +55,13 @@ export class ThemeService {
      * Holds the current theme mode of the application.
      *
      * @private
-     * @type {ThemeMode}
      * @memberof ThemeService
      */
-    private themeMode: ThemeMode = ThemeMode.Light;
+    private readonly themeMode = signal<ThemeMode>(ThemeMode.Light);
+
+    readonly themeModeIcon = computed(() =>
+        this.themeMode() === ThemeMode.Light ? this.darkModeIcon : this.lightModeIcon,
+    );
 
     /**
      * Retrieves the current theme mode of the application.
@@ -71,7 +70,7 @@ export class ThemeService {
      * @memberof ThemeService
      */
     public GetThemeMode(): ThemeMode {
-        return this.themeMode;
+        return this.themeMode();
     }
 
     /**
@@ -81,7 +80,7 @@ export class ThemeService {
      * @memberof ThemeService
      */
     public GetThemeModeIcon(): string {
-        return this.themeMode === ThemeMode.Light ? this.darkModeIcon : this.lightModeIcon;
+        return this.themeModeIcon();
     }
 
     /**
@@ -90,13 +89,9 @@ export class ThemeService {
      * @memberof ThemeService
      */
     public ToggleDarkMode(): void {
-        // Toggle the dark mode class on the HTML element.
-        const element = document.querySelector('html');
-        element?.classList.toggle(darkModeClass);
-        this.themeMode = this.themeMode === ThemeMode.Light ? ThemeMode.Dark : ThemeMode.Light;
-
-        // Store the current theme mode in session storage.
-        this.sessionService.Set(SessionKeys.ThemeMode, ThemeMode[this.themeMode]);
+        const nextMode = this.themeMode() === ThemeMode.Light ? ThemeMode.Dark : ThemeMode.Light;
+        this.SetThemeMode(nextMode);
+        this.sessionService.Set(SessionKeys.ThemeMode, ThemeMode[nextMode]);
     }
 
     /**
@@ -107,7 +102,7 @@ export class ThemeService {
      */
     public SetThemeMode(mode: ThemeMode): void {
         // Update the HTML element's class based on the specified mode.
-        const element = document.querySelector('html');
+        const element = document.documentElement;
 
         // Apply or remove the dark mode class.
         if (mode === ThemeMode.Dark) {
@@ -117,6 +112,6 @@ export class ThemeService {
         }
 
         // Update the current theme mode.
-        this.themeMode = mode;
+        this.themeMode.set(mode);
     }
 }
