@@ -1,23 +1,23 @@
-<div class="h-full overflow-auto">
-    <p-accordion [value]="['physics']" [multiple]="true">
+<div class="h-full overflow-auto mr-3 sidebar-scroll">
+    <p-accordion [value]="['physics']" [multiple]="true" styleClass="flow-accordion">
         <p-accordion-panel [value]="'physics'">
             <p-accordion-header>
                 Physics
             </p-accordion-header>
     
             <p-accordion-content>
-                <table class="w-full">
+                <table class="w-full text-sm">
                     <tbody>
-                        @for (row of physicsRows(); track $index) {
-                            <tr [pTooltip]="row.description">
-                                <td>
-                                    <label [for]="row.key">{{ row.name }}</label>
+                        @for (row of physicsRows(); track row.id) {
+                            <tr [pTooltip]="row.description" class="align-middle">
+                                <td class="pr-2 py-2">
+                                    <label [for]="row.id" class="font-medium">{{ row.name }}</label>
                                 </td>
                                 
-                                <td>
+                                <td class="py-2">
                                     <div class="flex flex-row items-center w-full">
                                         <p-slider [(ngModel)]="row.obj[row.key]" class="w-3/4 mr-4" [min]="row.min" [max]="row.max" [step]="row.step" />
-                                        <p-inputnumber [inputId]="row.key" [(ngModel)]="row.obj[row.key]" class="w-1/4" inputStyleClass="w-full" [min]="row.min" [max]="row.max" [step]="row.step"/>
+                                        <p-inputnumber [inputId]="row.id" [(ngModel)]="row.obj[row.key]" class="w-1/4" inputStyleClass="w-full" [min]="row.min" [max]="row.max" [step]="row.step"/>
                                     </div>
                                 </td>
                             </tr>
@@ -33,19 +33,19 @@
             </p-accordion-header>
     
             <p-accordion-content>
-                <table class="w-full">
+                <table class="w-full text-sm">
                     <tbody>
-                        @for (row of simulationRows(); track $index) {
+                        @for (row of simulationRows(); track row.id) {
                         <tr [pTooltip]="row.description">
-                            <td>
-                                <label [for]="row.key">{{ row.name }}</label>
+                            <td class="pr-2 py-2">
+                                <label [for]="row.id" class="font-medium">{{ row.name }}</label>
                             </td>
                 
-                            <td>
+                            <td class="py-2">
                                 <div class="flex flex-row items-center w-full">
                                     <p-slider [(ngModel)]="row.obj[row.key]" class="w-3/4 mr-4" [min]="row.min" [max]="row.max"
                                         [step]="row.step" />
-                                    <p-inputnumber [inputId]="row.key" [(ngModel)]="row.obj[row.key]" class="w-1/4"
+                                    <p-inputnumber [inputId]="row.id" [(ngModel)]="row.obj[row.key]" class="w-1/4"
                                         inputStyleClass="w-full" [min]="row.min" [max]="row.max" [step]="row.step" />
                                 </div>
                             </td>
@@ -62,19 +62,19 @@
             </p-accordion-header>
     
             <p-accordion-content>
-                <table class="w-full">
+                <table class="w-full text-sm">
                     <tbody>
-                        @for (row of interactionRows(); track $index) {
+                        @for (row of interactionRows(); track row.id) {
                         <tr [pTooltip]="row.description">
-                            <td>
-                                <label [for]="row.key">{{ row.name }}</label>
+                            <td class="pr-2 py-2">
+                                <label [for]="row.id" class="font-medium">{{ row.name }}</label>
                             </td>
                 
-                            <td>
+                            <td class="py-2">
                                 <div class="flex flex-row items-center w-full">
                                     <p-slider [(ngModel)]="row.obj[row.key]" class="w-3/4 mr-4" [min]="row.min" [max]="row.max"
                                         [step]="row.step" />
-                                    <p-inputnumber [inputId]="row.key" [(ngModel)]="row.obj[row.key]" class="w-1/4"
+                                    <p-inputnumber [inputId]="row.id" [(ngModel)]="row.obj[row.key]" class="w-1/4"
                                         inputStyleClass="w-full" [min]="row.min" [max]="row.max" [step]="row.step" />
                                 </div>
                             </td>

@@ -1,0 +1,65 @@
+:host {
+	display: block;
+	height: 100%;
+}
+
+.sidebar-scroll {
+	scrollbar-width: thin;
+}
+
+/* Accordion layout — spaced glass cards */
+:host ::ng-deep .flow-accordion {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+:host ::ng-deep .flow-accordion .p-accordionpanel {
+	border-radius: 0.75rem;
+	overflow: hidden;
+	border: 1px solid rgba(148, 163, 184, 0.3);
+	background: rgba(248, 250, 252, 0.55);
+	backdrop-filter: blur(8px);
+}
+
+:host-context(.p-dark) ::ng-deep .flow-accordion .p-accordionpanel {
+	background: rgba(15, 23, 42, 0.55);
+	border-color: rgba(56, 189, 248, 0.13);
+}
+
+/* Panel header */
+:host ::ng-deep .flow-accordion .p-accordionheader {
+	background: linear-gradient(120deg, rgba(15, 23, 42, 0.06), rgba(15, 118, 110, 0.08));
+	border: none;
+	padding: 0.625rem 1rem;
+	font-size: 0.7rem;
+	font-weight: 600;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	transition: background 0.2s;
+}
+
+:host-context(.p-dark) ::ng-deep .flow-accordion .p-accordionheader {
+	background: linear-gradient(120deg, rgba(2, 6, 23, 0.5), rgba(8, 47, 73, 0.4));
+}
+
+:host ::ng-deep .flow-accordion .p-accordionheader:hover {
+	background: linear-gradient(120deg, rgba(34, 211, 238, 0.1), rgba(15, 118, 110, 0.14)) !important;
+}
+
+/* Active panel — accent header + separator */
+:host ::ng-deep .flow-accordion .p-accordionpanel-active .p-accordionheader {
+	background: linear-gradient(120deg, rgba(34, 211, 238, 0.12), rgba(15, 118, 110, 0.16));
+	border-bottom: 1px solid rgba(34, 211, 238, 0.2);
+}
+
+:host-context(.p-dark) ::ng-deep .flow-accordion .p-accordionpanel-active .p-accordionheader {
+	background: linear-gradient(120deg, rgba(34, 211, 238, 0.1), rgba(8, 47, 73, 0.5));
+	border-bottom-color: rgba(56, 189, 248, 0.15);
+}
+
+/* Content area */
+:host ::ng-deep .flow-accordion .p-accordioncontent-content {
+	padding: 0.5rem 0.75rem 0.75rem;
+	background: transparent;
+}
