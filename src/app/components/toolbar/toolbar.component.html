@@ -1,15 +1,33 @@
-<p-toolbar>
+<p-toolbar styleClass="flow-toolbar border-none rounded-2xl px-3 py-2 shadow-none bg-transparent">
     <ng-template #start>
-        <p-button icon="pi pi-plus" class="mr-3" severity="secondary" />
-        <p-button icon="pi pi-print" class="mr-3" severity="secondary" />
-        <p-button icon="pi pi-upload" severity="secondary" />
+        <div class="flex items-center gap-2">
+            <span class="text-xs uppercase tracking-[0.16em] opacity-70">Flow Studio</span>
+            <span class="h-1.5 w-1.5 rounded-full bg-cyan-400"></span>
+            <span class="text-xs opacity-80">PrimeNG + Tailwind</span>
+        </div>
     </ng-template>
 
     <ng-template #end>
-        <p-button label="Save" icon="pi pi-save" (onClick)="Save()" class="mr-3" />
-        <p-button label="Load" icon="pi pi-upload" (onClick)="Load()" class="mr-3" />
-        <p-button label="Delete" icon="pi pi-trash" (onClick)="Delete()" class="mr-3" />
-        <p-button label="Restart" icon="pi pi-refresh" (onClick)="Restart()" class="mr-3" />
-        <p-button [icon]="GetThemeModeIcon()" (onClick)="ToggleDarkMode()"></p-button>
+        <div class="flex items-center gap-2 flex-wrap justify-end">
+            @for (button of actionButtons; track button.command) {
+                <p-button
+                    [label]="button.label"
+                    [icon]="button.icon"
+                    [severity]="button.command === 'delete' ? 'danger' : 'secondary'"
+                    [outlined]="button.command !== 'delete'"
+                    [raised]="button.command === 'restart'"
+                    (onClick)="EmitCommand(button.command)"
+                />
+            }
+
+            <p-button
+                [icon]="themeModeIcon()"
+                severity="contrast"
+                rounded="true"
+                [outlined]="true"
+                (onClick)="EmitCommand('toggle-theme')"
+                ariaLabel="Toggle theme"
+            />
+        </div>
     </ng-template>
 </p-toolbar>
