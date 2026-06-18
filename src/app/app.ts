@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, OnInit } from '@angular/core';
 
 import { LayoutComponent } from './components/layout/layout.component';
 
@@ -9,7 +9,8 @@ import { SessionKeys, SessionService } from './services/session/session.service'
     selector: 'app-root',
     imports: [LayoutComponent],
     templateUrl: './app.html',
-    styleUrl: './app.css',
+    styleUrls: ['./app.css'],
+    changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class App implements OnInit {
     private themeService: ThemeService = inject(ThemeService);

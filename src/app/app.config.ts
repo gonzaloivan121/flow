@@ -3,6 +3,9 @@ import { provideRouter, withComponentInputBinding } from '@angular/router';
 
 import { providePrimeNG } from 'primeng/config';
 import Aura from '@primeuix/themes/aura';
+import Lara from '@primeuix/themes/lara';
+import Nora from '@primeuix/themes/nora';
+import Material from '@primeuix/themes/material';
 
 import { routes } from './app.routes';
 
@@ -15,7 +18,7 @@ export const appConfig: ApplicationConfig = {
         provideRouter(routes, withComponentInputBinding()),
         providePrimeNG({
             theme: {
-                preset: Aura,
+                preset: Lara,
                 options: {
                     ripple: true,
                     darkModeSelector: darkModeSelector,
