@@ -1,0 +1,29 @@
+.flow-shell {
+	background:
+		radial-gradient(circle at 12% 10%, rgba(34, 211, 238, 0.18), transparent 28%),
+		radial-gradient(circle at 88% 86%, rgba(14, 116, 144, 0.2), transparent 24%),
+		linear-gradient(180deg, rgba(248, 250, 252, 0.9), rgba(226, 232, 240, 0.78));
+}
+
+:host-context(.p-dark) .flow-shell {
+	background:
+		radial-gradient(circle at 12% 10%, rgba(34, 211, 238, 0.12), transparent 28%),
+		radial-gradient(circle at 88% 86%, rgba(14, 116, 144, 0.22), transparent 24%),
+		linear-gradient(180deg, rgba(2, 6, 23, 0.94), rgba(15, 23, 42, 0.96));
+}
+
+.flow-stage-card {
+	background: rgba(248, 250, 252, 0.7);
+	border: 1px solid rgba(148, 163, 184, 0.35);
+	backdrop-filter: blur(10px);
+}
+
+:host-context(.p-dark) .flow-stage-card {
+	background: rgba(15, 23, 42, 0.72);
+	border: 1px solid rgba(56, 189, 248, 0.15);
+}
+
+.flow-splitter {
+	border: none;
+	background: transparent;
+}

@@ -1,18 +1,17 @@
-<div class="p-4 h-screen flex flex-col">
-    <div class="mb-4">
-        <app-toolbar #toolbar (onSave)="Save()" (onLoad)="Load()" (onDelete)="Delete()"
-            (onRestart)="Restart()"></app-toolbar>
-    </div>
+<div class="flow-shell h-screen p-3 md:p-4">
+    <div class="flow-grid h-full flex flex-col gap-3 md:gap-4">
+        <app-toolbar (command)="HandleCommand($event)"></app-toolbar>
 
-    <div class="flex-1 min-h-0">
-        <p-splitter [panelSizes]="[33, 66]" class="h-full min-h-0 overflow-hidden">
-            <ng-template #panel>
-                <app-sidebar #sidebar [app]="app"></app-sidebar>
-            </ng-template>
+        <section class="flow-stage-card flex-1 min-h-0 rounded-2xl p-2 md:p-3">
+            <p-splitter [panelSizes]="[30, 70]" class="h-full min-h-0 overflow-hidden flow-splitter">
+                <ng-template #panel>
+                    <app-sidebar [app]="app"></app-sidebar>
+                </ng-template>
 
-            <ng-template #panel>
-                <app-viewport [app]="app"></app-viewport>
-            </ng-template>
-        </p-splitter>
+                <ng-template #panel>
+                    <app-viewport [app]="app"></app-viewport>
+                </ng-template>
+            </p-splitter>
+        </section>
     </div>
 </div>

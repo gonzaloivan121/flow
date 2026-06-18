@@ -1,56 +1,53 @@
-import { Component, inject, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, viewChild } from '@angular/core';
 
 import { ToolbarComponent } from '../toolbar/toolbar.component';
+import { ToolbarCommand } from '../toolbar/toolbar.component';
 import { SidebarComponent } from '../sidebar/sidebar.component';
 import { ViewportComponent } from '../viewport/viewport.component';
 
 import { SplitterModule } from 'primeng/splitter';
-import { FluidSimulationApp, Interaction, Particle, Physics, Simulation } from '../../classes/fluid-simulation.app';
-import { SessionKeys, SessionService } from '../../services/session/session.service';
+import { FluidSimulationApp } from '../../classes/fluid-simulation.app';
+import { SimulationPersistenceService } from '../../services/simulation-persistence/simulation-persistence.service';
 
 @Component({
     selector: 'app-layout',
     imports: [ToolbarComponent, SidebarComponent, ViewportComponent, SplitterModule],
     templateUrl: './layout.component.html',
     styleUrl: './layout.component.css',
+    changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LayoutComponent {
-    private sessionService: SessionService = inject(SessionService);
+    private simulationPersistence = inject(SimulationPersistenceService);
 
-    app = new FluidSimulationApp();
-    viewport = viewChild(ViewportComponent);
+    readonly app = new FluidSimulationApp();
+    readonly viewport = viewChild(ViewportComponent);
 
-    Save(): void {
-        this.sessionService.Set(SessionKeys.PhysicsData, JSON.stringify(this.app.physics));
-        this.sessionService.Set(SessionKeys.SimulationData, JSON.stringify(this.app.simulation));
-        this.sessionService.Set(SessionKeys.InteractionData, JSON.stringify(this.app.interaction));
-    }
-
-    Load(): void {
-        const physics = this.sessionService.Get(SessionKeys.PhysicsData);
-        const simulation = this.sessionService.Get(SessionKeys.SimulationData);
-        const interaction = this.sessionService.Get(SessionKeys.InteractionData);
-
-        if (physics) {
-            this.app.physics = JSON.parse(physics) as Physics;
-        }
-
-        if (simulation) {
-            this.app.simulation = JSON.parse(simulation) as Simulation;
-        }
-
-        if (interaction) {
-            this.app.interaction = JSON.parse(interaction) as Interaction;
+    HandleCommand(command: ToolbarCommand): void {
+        switch (command) {
+            case 'save':    this.Save();    return;
+            case 'load':    this.Load();    return;
+            case 'delete':  this.Delete();  return;
+            case 'restart': this.Restart(); return;
         }
     }
 
-    Delete(): void {
-        this.sessionService.Remove(SessionKeys.PhysicsData);
-        this.sessionService.Remove(SessionKeys.SimulationData);
-        this.sessionService.Remove(SessionKeys.InteractionData);
+    private Save(): void {
+        this.simulationPersistence.Save(this.app);
     }
 
-    Restart(): void {
+    private Load(): void {
+        const hasLoadedState = this.simulationPersistence.Load(this.app);
+
+        if (hasLoadedState) {
+            this.viewport()?.RestartSimulation();
+        }
+    }
+
+    private Delete(): void {
+        this.simulationPersistence.Clear();
+    }
+
+    private Restart(): void {
         this.viewport()?.RestartSimulation();
     }
 }
