@@ -1,0 +1,15 @@
+<p-toolbar>
+    <ng-template #start>
+        <p-button icon="pi pi-plus" class="mr-3" severity="secondary" />
+        <p-button icon="pi pi-print" class="mr-3" severity="secondary" />
+        <p-button icon="pi pi-upload" severity="secondary" />
+    </ng-template>
+
+    <ng-template #end>
+        <p-button label="Save" icon="pi pi-save" (onClick)="Save()" class="mr-3" />
+        <p-button label="Load" icon="pi pi-upload" (onClick)="Load()" class="mr-3" />
+        <p-button label="Delete" icon="pi pi-trash" (onClick)="Delete()" class="mr-3" />
+        <p-button label="Restart" icon="pi pi-refresh" (onClick)="Restart()" class="mr-3" />
+        <p-button [icon]="GetThemeModeIcon()" (onClick)="ToggleDarkMode()"></p-button>
+    </ng-template>
+</p-toolbar>

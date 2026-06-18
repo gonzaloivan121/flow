@@ -1,0 +1,18 @@
+<div class="p-4 h-screen flex flex-col">
+    <div class="mb-4">
+        <app-toolbar #toolbar (onSave)="Save()" (onLoad)="Load()" (onDelete)="Delete()"
+            (onRestart)="Restart()"></app-toolbar>
+    </div>
+
+    <div class="flex-1 min-h-0">
+        <p-splitter [panelSizes]="[33, 66]" class="h-full min-h-0 overflow-hidden">
+            <ng-template #panel>
+                <app-sidebar #sidebar [app]="app"></app-sidebar>
+            </ng-template>
+
+            <ng-template #panel>
+                <app-viewport [app]="app"></app-viewport>
+            </ng-template>
+        </p-splitter>
+    </div>
+</div>

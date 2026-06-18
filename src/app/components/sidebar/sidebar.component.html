@@ -1,0 +1,88 @@
+<div class="h-full overflow-auto">
+    <p-accordion [value]="['physics']" [multiple]="true">
+        <p-accordion-panel [value]="'physics'">
+            <p-accordion-header>
+                Physics
+            </p-accordion-header>
+    
+            <p-accordion-content>
+                <table class="w-full">
+                    <tbody>
+                        @for (row of physicsRows(); track $index) {
+                            <tr [pTooltip]="row.description">
+                                <td>
+                                    <label [for]="row.key">{{ row.name }}</label>
+                                </td>
+                                
+                                <td>
+                                    <div class="flex flex-row items-center w-full">
+                                        <p-slider [(ngModel)]="row.obj[row.key]" class="w-3/4 mr-4" [min]="row.min" [max]="row.max" [step]="row.step" />
+                                        <p-inputnumber [inputId]="row.key" [(ngModel)]="row.obj[row.key]" class="w-1/4" inputStyleClass="w-full" [min]="row.min" [max]="row.max" [step]="row.step"/>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </p-accordion-content>
+        </p-accordion-panel>
+    
+        <p-accordion-panel [value]="'simulation'">
+            <p-accordion-header>
+                Simulation
+            </p-accordion-header>
+    
+            <p-accordion-content>
+                <table class="w-full">
+                    <tbody>
+                        @for (row of simulationRows(); track $index) {
+                        <tr [pTooltip]="row.description">
+                            <td>
+                                <label [for]="row.key">{{ row.name }}</label>
+                            </td>
+                
+                            <td>
+                                <div class="flex flex-row items-center w-full">
+                                    <p-slider [(ngModel)]="row.obj[row.key]" class="w-3/4 mr-4" [min]="row.min" [max]="row.max"
+                                        [step]="row.step" />
+                                    <p-inputnumber [inputId]="row.key" [(ngModel)]="row.obj[row.key]" class="w-1/4"
+                                        inputStyleClass="w-full" [min]="row.min" [max]="row.max" [step]="row.step" />
+                                </div>
+                            </td>
+                        </tr>
+                        }
+                    </tbody>
+                </table>
+            </p-accordion-content>
+        </p-accordion-panel>
+    
+        <p-accordion-panel [value]="'interaction'">
+            <p-accordion-header>
+                Interaction
+            </p-accordion-header>
+    
+            <p-accordion-content>
+                <table class="w-full">
+                    <tbody>
+                        @for (row of interactionRows(); track $index) {
+                        <tr [pTooltip]="row.description">
+                            <td>
+                                <label [for]="row.key">{{ row.name }}</label>
+                            </td>
+                
+                            <td>
+                                <div class="flex flex-row items-center w-full">
+                                    <p-slider [(ngModel)]="row.obj[row.key]" class="w-3/4 mr-4" [min]="row.min" [max]="row.max"
+                                        [step]="row.step" />
+                                    <p-inputnumber [inputId]="row.key" [(ngModel)]="row.obj[row.key]" class="w-1/4"
+                                        inputStyleClass="w-full" [min]="row.min" [max]="row.max" [step]="row.step" />
+                                </div>
+                            </td>
+                        </tr>
+                        }
+                    </tbody>
+                </table>
+            </p-accordion-content>
+        </p-accordion-panel>
+    </p-accordion>
+</div>
