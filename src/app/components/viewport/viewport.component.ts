@@ -1,6 +1,9 @@
 import {
+    ChangeDetectionStrategy,
     Component,
     ElementRef,
+    inject,
+    NgZone,
     signal,
     viewChild,
     afterRenderEffect,
@@ -16,14 +19,18 @@ import { FluidSimulationApp } from '../../classes/fluid-simulation.app';
     imports: [],
     templateUrl: './viewport.component.html',
     styleUrl: './viewport.component.css',
+    changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ViewportComponent implements OnDestroy {
     private canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
+    private ngZone = inject(NgZone);
+
     private resizeObserver?: ResizeObserver;
+    private resizeRafId?: number;
     private engine!: Engine;
     private isEngineInitialized: boolean = false;
 
-    app = input.required<FluidSimulationApp>();
+    readonly app = input.required<FluidSimulationApp>();
 
     // Standard signals exposed for structural metadata tracking if template needs them
     protected canvasWidth = signal<number>(0);
@@ -47,27 +54,49 @@ export class ViewportComponent implements OnDestroy {
             this.resizeObserver = new ResizeObserver((entries) => {
                 for (const entry of entries) {
                     const { width, height } = entry.contentRect;
-                    this.SyncResolution(width, height, canvasElement);
+
+                    if (this.resizeRafId) {
+                        cancelAnimationFrame(this.resizeRafId);
+                    }
+
+                    this.resizeRafId = requestAnimationFrame(() => {
+                        this.SyncResolution(width, height, canvasElement);
+                    });
                 }
             });
 
             this.resizeObserver.observe(canvasElement);
-            this.engine.Start();
+
+            this.ngZone.runOutsideAngular(() => {
+                this.engine.Start();
+            });
+
             this.isEngineInitialized = true;
         });
     }
 
+    /**
+     * Restarts the simulation using the current logical canvas dimensions.
+     */
     public RestartSimulation(): void {
         if (this.isEngineInitialized) {
             const canvas = this.canvasRef().nativeElement;
-            this.app().Restart(canvas.width, canvas.height);
+            const dpr = Math.max(1, window.devicePixelRatio || 1);
+            this.app().Restart(canvas.width / dpr, canvas.height / dpr);
         }
     }
 
+    /**
+     * Synchronizes the canvas backing resolution with the viewport display size.
+     */
     private SyncResolution(width: number, height: number, canvas: HTMLCanvasElement): void {
-        // Sync backing store drawing resolution to match visual CSS layout dimensions
-        canvas.width = width;
-        canvas.height = height;
+        const dpr = Math.max(1, window.devicePixelRatio || 1);
+
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+
+        const context = canvas.getContext('2d');
+        context?.setTransform(dpr, 0, 0, dpr, 0, 0);
 
         // Update state signals
         this.canvasWidth.set(width);
@@ -77,6 +106,10 @@ export class ViewportComponent implements OnDestroy {
     ngOnDestroy(): void {
         if (this.resizeObserver) {
             this.resizeObserver.disconnect();
+        }
+
+        if (this.resizeRafId) {
+            cancelAnimationFrame(this.resizeRafId);
         }
 
         if (this.engine) {
