@@ -112,7 +112,7 @@ export class SessionService {
      * @memberof SessionService
      */
     public Has(key: string): boolean {
-        return this.sessionStorage.getItem(key) !== null;
+        return this.Get(key) !== null;
     }
 
     /**
@@ -207,5 +207,39 @@ export class SessionService {
      */
     public ExportContents(): string {
         return JSON.stringify(this.GetAll());
+    }
+
+    /**
+     * Imports key-value pairs from a JSON string and replaces the current session storage contents.
+     *
+     * @template T The type of the values in the JSON object.
+     * @param {string} key The key under which to store the JSON string in session storage.
+     * @param {T} value The value to convert to JSON and store.
+     * @memberof SessionService
+     */
+    public SetJSON<T>(key: string, value: T): void {
+        this.Set(key, JSON.stringify(value));
+    }
+
+    /**
+     * Retrieves a value from session storage by key and parses it as JSON.
+     *
+     * @template T The expected type of the parsed JSON value.
+     * @param {string} key The key to get.
+     * @returns {(T | null)} The parsed JSON value, or `null` if parsing fails or the key does not exist.
+     * @memberof SessionService
+     */
+    public GetJSON<T>(key: string): T | null {
+        const value = this.Get(key);
+
+        if (!value) {
+            return null;
+        }
+
+        try {
+            return JSON.parse(value) as T;
+        } catch {
+            return null;
+        }
     }
 }
