@@ -43,6 +43,7 @@ export class FluidSimulationApp implements IApplication {
     private input!: InputManager;
 
     private particles: Particle[] = [];
+    private spatialBuckets = new Map<string, Particle[]>();
 
     public physics: Physics = {
         gravity: new Vector2(0, 9.81),
@@ -105,33 +106,38 @@ export class FluidSimulationApp implements IApplication {
     public Update(ts: number, width: number, height: number): void {
         // Cap ts to avoid unstable teleportation during lag spikes
         const dt: number = Math.min(ts, this.simulation.maxTimestep);
+        const smoothingRadius = this.physics.smoothingRadius;
 
-        this.ComputeDensity();
+        this.BuildSpatialBuckets(smoothingRadius);
+
+        this.ComputeDensity(smoothingRadius);
         this.ComputePressure();
-        this.ApplyForces(dt);
+        this.ApplyForces(dt, smoothingRadius);
         this.UpdatePositions(dt, width, height);
         this.UpdateColors(dt);
     }
 
-    private ComputeDensity(): void {
-        const smoothingRadius: number = this.physics.smoothingRadius;
+    private ComputeDensity(smoothingRadius: number): void {
         const hSq: number = smoothingRadius * smoothingRadius;
 
         // 2D Poly6 Kernel Normalization factor
-        const poly6: number = 4.0 / (Math.PI * Math.pow(smoothingRadius, 8));
+        const hPow8 = hSq * hSq * hSq * hSq;
+        const poly6: number = 4.0 / (Math.PI * hPow8);
+        const particles = this.particles;
 
         // Compute localized density profiles
-        for (const p1 of this.particles) {
+        for (const p1 of particles) {
             let densitySum: number = 0;
 
-            for (const p2 of this.particles) {
+            for (const p2 of this.GetNearbyParticles(p1, smoothingRadius)) {
                 const dx: number = p2.position.x - p1.position.x;
                 const dy: number = p2.position.y - p1.position.y;
                 const distSq: number = dx * dx + dy * dy;
 
                 if (distSq < hSq) {
                     // Standard SPH spiky kernel approximation
-                    densitySum += p2.mass * Math.pow(hSq - distSq, 3);
+                    const delta = hSq - distSq;
+                    densitySum += p2.mass * delta * delta * delta;
                 }
             }
 
@@ -143,11 +149,12 @@ export class FluidSimulationApp implements IApplication {
     private ComputePressure(): void {
         const pressureStiffness: number = this.physics.pressureStiffness;
         const targetDensity: number = this.physics.targetDensity;
+        const particles = this.particles;
 
         // Compute state pressure equation (Ideal Gas / SPH state derivation)
-        for (const p1 of this.particles) {
+        for (const p1 of particles) {
             const densityRatio: number = p1.density / targetDensity;
-            p1.pressure = pressureStiffness * (Math.pow(densityRatio, 2) - 1.0);
+            p1.pressure = pressureStiffness * (densityRatio * densityRatio - 1.0);
 
             // Negative values cause sticking artifacts
             if (p1.pressure < 0) {
@@ -156,23 +163,30 @@ export class FluidSimulationApp implements IApplication {
         }
     }
 
-    private ApplyForces(dt: number): void {
-        const h: number = this.physics.smoothingRadius;
+    private ApplyForces(dt: number, h: number): void {
         const mousePosition: Vector2 = this.input.MousePosition();
         const isInteracting: boolean = this.input.MouseDown();
         const viscosity: number = this.physics.viscosity;
+        const gravityX = this.physics.gravity.x * this.physics.gravityMultiplier;
+        const gravityY = this.physics.gravity.y * this.physics.gravityMultiplier;
+        const damping = this.physics.globalDamping;
+        const mouseRadius: number = this.interaction.mouseRadius;
+        const mouseForce: number = this.interaction.mouseForce;
+        const particles = this.particles;
 
         // 2D Spiky & Viscosity Kernel Normalization factors
-        const spikyGrad: number = 30.0 / (Math.PI * Math.pow(h, 5));
-        const viscLap: number = 20.0 / (Math.PI * Math.pow(h, 5));
+        const hSq = h * h;
+        const hPow5 = hSq * hSq * h;
+        const spikyGrad: number = 30.0 / (Math.PI * hPow5);
+        const viscLap: number = 20.0 / (Math.PI * hPow5);
 
-        for (const p1 of this.particles) {
+        for (const p1 of particles) {
             let pForceX: number = 0;
             let pForceY: number = 0;
             let vForceX: number = 0;
             let vForceY: number = 0;
 
-            for (const p2 of this.particles) {
+            for (const p2 of this.GetNearbyParticles(p1, h)) {
                 if (p1 === p2) {
                     continue;
                 }
@@ -195,7 +209,8 @@ export class FluidSimulationApp implements IApplication {
                     const pGrad: number =
                         ((p1.pressure + p2.pressure) / (2.0 * p2.density)) *
                         spikyGrad *
-                        Math.pow(h - dist, 2);
+                        (h - dist) *
+                        (h - dist);
 
                     pForceX -= dirX * pGrad * p2.mass;
                     pForceY -= dirY * pGrad * p2.mass;
@@ -216,15 +231,10 @@ export class FluidSimulationApp implements IApplication {
             p1.velocity.y += (pForceY + vForceY) * dt;
 
             // Apply global Environment Constants (Gravity & Buoyancy vectors)
-            const gravity: Vector2 = Vector2.Multiply(
-                this.physics.gravity,
-                this.physics.gravityMultiplier,
-            );
-            p1.velocity.x += gravity.x * dt;
-            p1.velocity.y += gravity.y * dt;
+            p1.velocity.x += gravityX * dt;
+            p1.velocity.y += gravityY * dt;
 
             // Apply global velocity damping over time to allow settling
-            const damping = this.physics.globalDamping;
             p1.velocity.x *= damping;
             p1.velocity.y *= damping;
 
@@ -233,8 +243,6 @@ export class FluidSimulationApp implements IApplication {
                 const toMouseX: number = mousePosition.x - p1.position.x;
                 const toMouseY: number = mousePosition.y - p1.position.y;
                 const mouseDist: number = Math.sqrt(toMouseX * toMouseX + toMouseY * toMouseY);
-                const mouseRadius: number = this.interaction.mouseRadius;
-                const mouseForce: number = this.interaction.mouseForce;
 
                 if (mouseDist < mouseRadius && mouseDist > 1) {
                     // Left click acts like an underwater agitator/impeller
@@ -243,6 +251,46 @@ export class FluidSimulationApp implements IApplication {
                 }
             }
         }
+    }
+
+    private BuildSpatialBuckets(cellSize: number): void {
+        this.spatialBuckets.clear();
+
+        for (const particle of this.particles) {
+            const key = this.GetCellKey(particle.position.x, particle.position.y, cellSize);
+            const bucket = this.spatialBuckets.get(key);
+
+            if (bucket) {
+                bucket.push(particle);
+                continue;
+            }
+
+            this.spatialBuckets.set(key, [particle]);
+        }
+    }
+
+    private GetNearbyParticles(center: Particle, cellSize: number): Particle[] {
+        const nearby: Particle[] = [];
+        const centerX = Math.floor(center.position.x / cellSize);
+        const centerY = Math.floor(center.position.y / cellSize);
+
+        for (let x = centerX - 1; x <= centerX + 1; x++) {
+            for (let y = centerY - 1; y <= centerY + 1; y++) {
+                const bucket = this.spatialBuckets.get(`${x},${y}`);
+
+                if (!bucket) {
+                    continue;
+                }
+
+                nearby.push(...bucket);
+            }
+        }
+
+        return nearby;
+    }
+
+    private GetCellKey(x: number, y: number, cellSize: number): string {
+        return `${Math.floor(x / cellSize)},${Math.floor(y / cellSize)}`;
     }
 
     private UpdatePositions(dt: number, width: number, height: number): void {
