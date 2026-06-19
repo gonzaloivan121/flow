@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 
 import {
+    Coloring,
     FluidSimulationApp,
     Interaction,
     Physics,
@@ -14,44 +15,70 @@ import { SessionKeys, SessionService } from '../session/session.service';
 export class SimulationPersistenceService {
     private readonly sessionService: SessionService = inject(SessionService);
 
+    private MergePhysics(target: Physics, source: Physics): void {
+        const { gravity, ...restPhysics } = source;
+
+        Object.assign(target, restPhysics);
+
+        if (gravity) {
+            Object.assign(target.gravity, gravity);
+        }
+    }
+
+    private MergeColoring(target: Coloring, source: Coloring): void {
+        const { slowColor, fastColor, backgroundColor, ...restColoring } = source;
+
+        Object.assign(target, restColoring);
+
+        if (slowColor) {
+            Object.assign(target.slowColor, slowColor);
+        }
+
+        if (fastColor) {
+            Object.assign(target.fastColor, fastColor);
+        }
+
+        if (backgroundColor) {
+            Object.assign(target.backgroundColor, backgroundColor);
+        }
+    }
+
     Save(app: FluidSimulationApp): void {
         this.sessionService.SetJSON(SessionKeys.PhysicsData, app.physics);
         this.sessionService.SetJSON(SessionKeys.SimulationData, app.simulation);
         this.sessionService.SetJSON(SessionKeys.InteractionData, app.interaction);
+        this.sessionService.SetJSON(SessionKeys.ColoringData, app.coloring);
     }
 
     Load(app: FluidSimulationApp): boolean {
         const physics = this.sessionService.GetJSON<Physics>(SessionKeys.PhysicsData);
         const simulation = this.sessionService.GetJSON<Simulation>(SessionKeys.SimulationData);
         const interaction = this.sessionService.GetJSON<Interaction>(SessionKeys.InteractionData);
+        const coloring = this.sessionService.GetJSON<Coloring>(SessionKeys.ColoringData);
 
         if (physics) {
-            app.physics = {
-                ...app.physics,
-                ...physics,
-            };
+            this.MergePhysics(app.physics, physics);
         }
 
         if (simulation) {
-            app.simulation = {
-                ...app.simulation,
-                ...simulation,
-            };
+            Object.assign(app.simulation, simulation);
         }
 
         if (interaction) {
-            app.interaction = {
-                ...app.interaction,
-                ...interaction,
-            };
+            Object.assign(app.interaction, interaction);
         }
 
-        return Boolean(physics || simulation || interaction);
+        if (coloring) {
+            this.MergeColoring(app.coloring, coloring);
+        }
+
+        return Boolean(physics || simulation || interaction || coloring);
     }
 
     Clear(): void {
         this.sessionService.Remove(SessionKeys.PhysicsData);
         this.sessionService.Remove(SessionKeys.SimulationData);
         this.sessionService.Remove(SessionKeys.InteractionData);
+        this.sessionService.Remove(SessionKeys.ColoringData);
     }
 }

@@ -42,6 +42,13 @@ export enum SessionKeys {
      * @type {string}
      */
     InteractionData = 'interaction-data',
+
+    /**
+     * Key for storing the current coloring data.
+     *
+     * @type {string}
+     */
+    ColoringData = 'coloring-data',
 }
 
 /**

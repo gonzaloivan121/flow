@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, OnInit, viewChild } from '@angular/core';
 
 import { ToolbarComponent } from '../toolbar/toolbar.component';
 import { ToolbarCommand } from '../toolbar/toolbar.component';
@@ -16,11 +16,15 @@ import { SimulationPersistenceService } from '../../services/simulation-persiste
     styleUrl: './layout.component.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class LayoutComponent {
+export class LayoutComponent implements OnInit {
     private simulationPersistence = inject(SimulationPersistenceService);
-
+    
     readonly app = new FluidSimulationApp();
     readonly viewport = viewChild(ViewportComponent);
+
+    ngOnInit(): void {
+        this.Load();
+    }
 
     HandleCommand(command: ToolbarCommand): void {
         switch (command) {
@@ -36,18 +40,19 @@ export class LayoutComponent {
     }
 
     private Load(): void {
-        const hasLoadedState = this.simulationPersistence.Load(this.app);
-
-        if (hasLoadedState) {
-            this.viewport()?.RestartSimulation();
-        }
+        this.simulationPersistence.Load(this.app);
     }
 
     private Delete(): void {
         this.simulationPersistence.Clear();
+        this.Reset();
     }
 
     private Restart(): void {
         this.viewport()?.RestartSimulation();
+    }
+
+    private Reset(): void {
+        this.app.ResetSettings();
     }
 }

@@ -60,7 +60,7 @@
             <p-accordion-header>
                 Interaction
             </p-accordion-header>
-    
+
             <p-accordion-content>
                 <table class="w-full text-sm">
                     <tbody>
@@ -77,6 +77,31 @@
                                     <p-inputnumber [inputId]="row.id" [(ngModel)]="row.obj[row.key]" class="w-1/4"
                                         inputStyleClass="w-full" [min]="row.min" [max]="row.max" [step]="row.step" />
                                 </div>
+                            </td>
+                        </tr>
+                        }
+
+                    </tbody>
+                </table>
+            </p-accordion-content>
+        </p-accordion-panel>
+
+        <p-accordion-panel [value]="'coloring'">
+            <p-accordion-header>
+                Coloring
+            </p-accordion-header>
+
+            <p-accordion-content>
+                <table class="w-full text-sm">
+                    <tbody>
+                        @for (row of coloringColors(); track row.key) {
+                        <tr [pTooltip]="row.description" class="align-middle">
+                            <td class="pr-2 py-2">
+                                <label class="font-medium" [for]="row.key">{{ row.name }}</label>
+                            </td>
+
+                            <td class="py-2">
+                                <p-colorpicker class="border rounded-(--p-colorpicker-preview-border-radius)" [(ngModel)]="row.obj[row.key]" format="rgb" [inputId]="row.key" [appendTo]="'body'" />
                             </td>
                         </tr>
                         }

@@ -1,12 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { Component, computed, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { AccordionModule } from 'primeng/accordion';
 import { SliderModule } from 'primeng/slider';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { TooltipModule } from 'primeng/tooltip';
+import { ColorPickerModule } from 'primeng/colorpicker';
 
-import { FluidSimulationApp } from '../../classes/fluid-simulation.app';
+import { FluidSimulationApp, RgbColor } from '../../classes/fluid-simulation.app';
 
 interface Row {
     name: string;
@@ -19,12 +20,18 @@ interface Row {
     step: number;
 }
 
+interface ColorRow {
+    name: string;
+    description: string;
+    obj: Record<string, RgbColor>;
+    key: string;
+}
+
 @Component({
     selector: 'app-sidebar',
-    imports: [FormsModule, AccordionModule, SliderModule, InputNumberModule, TooltipModule],
+    imports: [FormsModule, AccordionModule, SliderModule, InputNumberModule, TooltipModule, ColorPickerModule],
     templateUrl: './sidebar.component.html',
     styleUrl: './sidebar.component.css',
-    changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SidebarComponent {
     readonly app = input.required<FluidSimulationApp>();
@@ -227,13 +234,46 @@ export class SidebarComponent {
         {
             name: 'Color Intensity',
             description:
-                'Scales how rapidly a fast-moving particle shifts from deep blue to bright cyan/white.',
+                'Scales how rapidly a fast-moving particle shifts from the slow color to the fast color.',
             obj: this.app().interaction as unknown as Record<string, number>,
             key: 'colorIntensity',
             id: 'interaction-color-intensity',
             min: 1,
             max: 50,
             step: 1,
+        },
+    ]);
+
+    coloringColors = computed<ColorRow[]>(() => [
+        {
+            name: 'Slow Color',
+            description: 'Particle color at rest or low speed.',
+            obj: this.app().coloring as unknown as Record<string, RgbColor>,
+            key: 'slowColor',
+        },
+        {
+            name: 'Fast Color',
+            description: 'Particle color blended towards at high speed.',
+            obj: this.app().coloring as unknown as Record<string, RgbColor>,
+            key: 'fastColor',
+        },
+        {
+            name: 'Background Color',
+            description: 'Canvas background fill color.',
+            obj: this.app().coloring as unknown as Record<string, RgbColor>,
+            key: 'backgroundColor',
+        },
+        {
+            name: 'Hover Radius Color',
+            description: 'Color of the mouse radius ring while hovering over the canvas.',
+            obj: this.app().interaction as unknown as Record<string, RgbColor>,
+            key: 'mouseHoverColor',
+        },
+        {
+            name: 'Active Radius Color',
+            description: 'Color of the mouse radius ring while the mouse button is held down.',
+            obj: this.app().interaction as unknown as Record<string, RgbColor>,
+            key: 'mouseActiveColor',
         },
     ]);
 }

@@ -2,6 +2,12 @@ import { IApplication } from './engine';
 import { InputManager } from './input.manager';
 import { Vector2 } from '@xloxlolex/vector-math';
 
+/**
+ * Represents a single fluid particle with properties for position, velocity, density, pressure, mass, radius, and color.
+ *
+ * @export
+ * @interface Particle
+ */
 export interface Particle {
     position: Vector2;
     velocity: Vector2;
@@ -12,6 +18,12 @@ export interface Particle {
     color: string;
 }
 
+/**
+ * Simulation settings for physics constants and environmental factors.
+ *
+ * @export
+ * @interface Physics
+ */
 export interface Physics {
     gravity: Vector2; // Constant downward gravity acceleration
     gravityMultiplier: number; // Scalar for the gravity acceleration
@@ -24,6 +36,12 @@ export interface Physics {
     globalDamping: number; // Global velocity damping over time to allow settling
 }
 
+/**
+ * Simulation settings for particle initialization and timestep control.
+ *
+ * @export
+ * @interface Simulation
+ */
 export interface Simulation {
     particleColumns: number;
     particleRows: number;
@@ -33,10 +51,37 @@ export interface Simulation {
     maxTimestep: number;
 }
 
+/**
+ * Interaction settings for user input (e.g., mouse).
+ *
+ * @export
+ * @interface Interaction
+ */
 export interface Interaction {
     mouseRadius: number;
     mouseForce: number;
     colorIntensity: number;
+    mouseHoverColor: RgbColor;
+    mouseActiveColor: RgbColor;
+}
+
+export interface RgbColor {
+    r: number;
+    g: number;
+    b: number;
+}
+
+/**
+ * Coloring settings for particle and background colors.
+ * Color values are RGB objects in the form `{ r, g, b }`.
+ *
+ * @export
+ * @interface Coloring
+ */
+export interface Coloring {
+    slowColor: RgbColor; // Particle color at rest / low speed
+    fastColor: RgbColor; // Particle color at maximum speed
+    backgroundColor: RgbColor; // Canvas background fill color
 }
 
 export class FluidSimulationApp implements IApplication {
@@ -70,11 +115,60 @@ export class FluidSimulationApp implements IApplication {
         mouseRadius: 100,
         mouseForce: 1000,
         colorIntensity: 20,
+        mouseHoverColor: { r: 56, g: 189, b: 248 },
+        mouseActiveColor: { r: 248, g: 113, b: 113 },
+    };
+
+    public coloring: Coloring = {
+        slowColor: { r: 56, g: 189, b: 248 },
+        fastColor: { r: 255, g: 242, b: 248 },
+        backgroundColor: { r: 15, g: 23, b: 42 },
+    };
+
+    private readonly defaultColoring: Coloring = {
+        slowColor: { r: 56, g: 189, b: 248 },
+        fastColor: { r: 255, g: 242, b: 248 },
+        backgroundColor: { r: 15, g: 23, b: 42 },
     };
 
     public Initialize(width: number, height: number, input: InputManager): void {
         this.input = input;
         this.Restart(width, height);
+    }
+
+    public ResetSettings(): void {
+        Object.assign(this.physics, {
+            gravityMultiplier: 100.0,
+            smoothingRadius: 30.0,
+            targetDensity: 0.005,
+            pressureStiffness: 12000.0,
+            viscosity: 0.89,
+            wallBounce: -0.15,
+            wallFriction: 0.7,
+            globalDamping: 0.95,
+        });
+        Object.assign(this.physics.gravity, { x: 0, y: 9.81 });
+
+        Object.assign(this.simulation, {
+            particleColumns: 30,
+            particleRows: 30,
+            initialSpacing: 10,
+            particleMass: 1.0,
+            particleRadius: 4.0,
+            maxTimestep: 0.08,
+        });
+
+        Object.assign(this.interaction, {
+            mouseRadius: 100,
+            mouseForce: 1000,
+            colorIntensity: 20,
+            mouseHoverColor: { r: 56, g: 189, b: 248 },
+            mouseActiveColor: { r: 248, g: 113, b: 113 },
+        });
+
+        Object.assign(this.coloring.slowColor, this.defaultColoring.slowColor);
+        Object.assign(this.coloring.fastColor, this.defaultColoring.fastColor);
+        Object.assign(this.coloring.backgroundColor, this.defaultColoring.backgroundColor);
     }
 
     public Restart(width: number, height: number): void {
@@ -95,7 +189,7 @@ export class FluidSimulationApp implements IApplication {
                     pressure: 0,
                     mass: this.simulation.particleMass,
                     radius: this.simulation.particleRadius,
-                    color: '#38bdf8',
+                    color: this.ColorToCss(this.coloring.slowColor),
                 };
 
                 this.particles.push(particle);
@@ -328,18 +422,79 @@ export class FluidSimulationApp implements IApplication {
         }
     }
 
+    private ClampColorChannel(value: number): number {
+        if (!Number.isFinite(value)) {
+            return 0;
+        }
+
+        return Math.max(0, Math.min(255, Math.round(value)));
+    }
+
+    private NormalizeRgbColor(value: unknown, fallback: RgbColor): RgbColor {
+        if (typeof value === 'object' && value !== null) {
+            const channelRecord = value as Record<string, unknown>;
+
+            return {
+                r: this.ClampColorChannel(Number(channelRecord['r'])),
+                g: this.ClampColorChannel(Number(channelRecord['g'])),
+                b: this.ClampColorChannel(Number(channelRecord['b'])),
+            };
+        }
+
+        if (typeof value === 'string') {
+            const rgbMatch = value.match(/rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+
+            if (rgbMatch) {
+                return {
+                    r: this.ClampColorChannel(Number(rgbMatch[1])),
+                    g: this.ClampColorChannel(Number(rgbMatch[2])),
+                    b: this.ClampColorChannel(Number(rgbMatch[3])),
+                };
+            }
+        }
+
+        return {
+            r: fallback.r,
+            g: fallback.g,
+            b: fallback.b,
+        };
+    }
+
+    private ColorToCss(color: RgbColor): string {
+        return `rgb(${color.r}, ${color.g}, ${color.b})`;
+    }
+
     private UpdateColors(dt: number): void {
+        this.coloring.slowColor = this.NormalizeRgbColor(
+            this.coloring.slowColor,
+            this.defaultColoring.slowColor
+        );
+        this.coloring.fastColor = this.NormalizeRgbColor(
+            this.coloring.fastColor,
+            this.defaultColoring.fastColor
+        );
+        this.coloring.backgroundColor = this.NormalizeRgbColor(
+            this.coloring.backgroundColor,
+            this.defaultColoring.backgroundColor
+        );
+
+        const { r: sr, g: sg, b: sb } = this.coloring.slowColor;
+        const { r: fr, g: fg, b: fb } = this.coloring.fastColor;
+        const colorIntensity: number = this.interaction.colorIntensity;
+
         for (const particle of this.particles) {
             // Dynamic color tracking based on velocity magnitude (visually indicates waves/energy)
             const speed: number = particle.velocity.magnitude;
-            const colorIntensity: number = this.interaction.colorIntensity;
-            const intensity: number = Math.min(Math.floor(speed * colorIntensity), 255);
-            particle.color = `rgb(${intensity}, ${140 + Math.floor(intensity * 0.4)}, 248)`;
+            const t: number = Math.min((speed * colorIntensity) / 255, 1.0);
+            const r: number = Math.round(sr + (fr - sr) * t);
+            const g: number = Math.round(sg + (fg - sg) * t);
+            const b: number = Math.round(sb + (fb - sb) * t);
+            particle.color = `rgb(${r}, ${g}, ${b})`;
         }
     }
 
     Draw(ctx: CanvasRenderingContext2D, width: number, height: number): void {
-        ctx.fillStyle = '#0f172a';
+        ctx.fillStyle = this.ColorToCss(this.coloring.backgroundColor);
         ctx.fillRect(0, 0, width, height);
 
         // Draw fluid particles
@@ -348,6 +503,31 @@ export class FluidSimulationApp implements IApplication {
             ctx.arc(particle.position.x, particle.position.y, particle.radius, 0, 2 * Math.PI);
             ctx.fillStyle = particle.color;
             ctx.fill();
+        }
+
+        if (this.input.IsMouseOverCanvas()) {
+            const mousePosition: Vector2 = this.input.MousePosition();
+            const radius: number = this.interaction.mouseRadius;
+            const isInteracting: boolean = this.input.MouseDown();
+            const indicatorColor = isInteracting
+                ? this.NormalizeRgbColor(this.interaction.mouseActiveColor, { r: 248, g: 113, b: 113 })
+                : this.NormalizeRgbColor(this.interaction.mouseHoverColor, { r: 56, g: 189, b: 248 });
+            const indicatorCss: string = this.ColorToCss(indicatorColor);
+
+            ctx.save();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = indicatorCss;
+            ctx.fillStyle = `rgba(${indicatorColor.r}, ${indicatorColor.g}, ${indicatorColor.b}, 0.14)`;
+            ctx.beginPath();
+            ctx.arc(mousePosition.x, mousePosition.y, radius, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(mousePosition.x, mousePosition.y, 3, 0, 2 * Math.PI);
+            ctx.fillStyle = indicatorCss;
+            ctx.fill();
+            ctx.restore();
         }
 
         // Context HUD
