@@ -49,6 +49,13 @@ export enum SessionKeys {
      * @type {string}
      */
     ColoringData = 'coloring-data',
+
+    /**
+     * Key for storing current performance settings.
+     *
+     * @type {string}
+     */
+    PerformanceData = 'performance-data',
 }
 
 /**

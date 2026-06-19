@@ -4,6 +4,7 @@ import {
     Coloring,
     FluidSimulationApp,
     Interaction,
+    PerformanceSettings,
     Physics,
     Simulation,
 } from '../../classes/fluid-simulation.app';
@@ -48,6 +49,7 @@ export class SimulationPersistenceService {
         this.sessionService.SetJSON(SessionKeys.SimulationData, app.simulation);
         this.sessionService.SetJSON(SessionKeys.InteractionData, app.interaction);
         this.sessionService.SetJSON(SessionKeys.ColoringData, app.coloring);
+        this.sessionService.SetJSON(SessionKeys.PerformanceData, app.performance);
     }
 
     Load(app: FluidSimulationApp): boolean {
@@ -55,6 +57,7 @@ export class SimulationPersistenceService {
         const simulation = this.sessionService.GetJSON<Simulation>(SessionKeys.SimulationData);
         const interaction = this.sessionService.GetJSON<Interaction>(SessionKeys.InteractionData);
         const coloring = this.sessionService.GetJSON<Coloring>(SessionKeys.ColoringData);
+        const performance = this.sessionService.GetJSON<PerformanceSettings>(SessionKeys.PerformanceData);
 
         if (physics) {
             this.MergePhysics(app.physics, physics);
@@ -72,7 +75,11 @@ export class SimulationPersistenceService {
             this.MergeColoring(app.coloring, coloring);
         }
 
-        return Boolean(physics || simulation || interaction || coloring);
+        if (performance) {
+            Object.assign(app.performance, performance);
+        }
+
+        return Boolean(physics || simulation || interaction || coloring || performance);
     }
 
     Clear(): void {
@@ -80,5 +87,6 @@ export class SimulationPersistenceService {
         this.sessionService.Remove(SessionKeys.SimulationData);
         this.sessionService.Remove(SessionKeys.InteractionData);
         this.sessionService.Remove(SessionKeys.ColoringData);
+        this.sessionService.Remove(SessionKeys.PerformanceData);
     }
 }
