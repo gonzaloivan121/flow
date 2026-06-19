@@ -5,7 +5,7 @@ export interface IApplication {
     Initialize(width: number, height: number, input: InputManager): void;
     Restart(width: number, height: number): void;
     Update(ts: number, width: number, height: number): void;
-    Draw(ctx: CanvasRenderingContext2D, width: number, height: number): void;
+    Draw(ctx: CanvasRenderingContext2D, width: number, height: number, ts: number): void;
 }
 
 export class Engine {
@@ -16,6 +16,18 @@ export class Engine {
     private isRunning: boolean = false;
     private lastTickTime: number = 0;
     private animationFrameId?: number;
+    private hiddenAtLeastOnce: boolean = false;
+
+    private GetPerformanceOptions(): { pauseWhenHidden: boolean; maxFps: number } {
+        const appWithPerformance = this.app as IApplication & {
+            performance?: { pauseWhenHidden?: boolean; maxFps?: number };
+        };
+
+        const pauseWhenHidden = appWithPerformance.performance?.pauseWhenHidden ?? true;
+        const maxFps = appWithPerformance.performance?.maxFps ?? 0;
+
+        return { pauseWhenHidden, maxFps };
+    }
 
     constructor(
         private canvas: HTMLCanvasElement,
@@ -25,13 +37,16 @@ export class Engine {
     }
 
     private Initialize(canvas: HTMLCanvasElement, app: IApplication): void {
-        const context = canvas.getContext('2d');
+        const context = canvas.getContext('2d', {
+            alpha: false,
+        });
 
         if (!context) {
             throw new NotFoundError('Could not obtain 2D canvas context');
         }
 
         this.ctx = context;
+        this.ctx.imageSmoothingEnabled = true;
         this.app = app;
         this.inputManager = new InputManager(canvas);
 
@@ -53,16 +68,42 @@ export class Engine {
             return;
         }
 
+        const performance = this.GetPerformanceOptions();
+
+        if (performance.pauseWhenHidden && document.hidden) {
+            this.hiddenAtLeastOnce = true;
+            this.lastTickTime = currentTime;
+            this.animationFrameId = requestAnimationFrame(this.Loop);
+            return;
+        }
+
+        if (this.hiddenAtLeastOnce) {
+            this.hiddenAtLeastOnce = false;
+            this.lastTickTime = currentTime;
+        }
+
         // Delta time calculation (converted to standard seconds)
-        const ts = (currentTime - this.lastTickTime) / 1000;
+        const elapsedSeconds = (currentTime - this.lastTickTime) / 1000;
+
+        if (performance.maxFps > 0) {
+            const minFrameTime = 1 / Math.max(1, performance.maxFps);
+
+            if (elapsedSeconds < minFrameTime) {
+                this.animationFrameId = requestAnimationFrame(this.Loop);
+                return;
+            }
+        }
+
+        const ts = elapsedSeconds;
         this.lastTickTime = currentTime;
 
         // Orchestrate update and render cycles
-        const width = this.LogicalWidth();
-        const height = this.LogicalHeight();
+        const dpr = Math.max(1, window.devicePixelRatio || 1);
+        const width = this.canvas.width / dpr;
+        const height = this.canvas.height / dpr;
 
         this.app.Update(ts, width, height);
-        this.app.Draw(this.ctx, width, height);
+        this.app.Draw(this.ctx, width, height, ts);
 
         this.animationFrameId = requestAnimationFrame(this.Loop);
     };
