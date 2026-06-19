@@ -29,6 +29,8 @@ export class ViewportComponent implements OnDestroy {
     private resizeRafId?: number;
     private engine!: Engine;
     private isEngineInitialized: boolean = false;
+    private lastPixelWidth: number = 0;
+    private lastPixelHeight: number = 0;
 
     readonly app = input.required<FluidSimulationApp>();
 
@@ -91,9 +93,18 @@ export class ViewportComponent implements OnDestroy {
      */
     private SyncResolution(width: number, height: number, canvas: HTMLCanvasElement): void {
         const dpr = Math.max(1, window.devicePixelRatio || 1);
+        const pixelWidth = Math.floor(width * dpr);
+        const pixelHeight = Math.floor(height * dpr);
 
-        canvas.width = Math.floor(width * dpr);
-        canvas.height = Math.floor(height * dpr);
+        if (pixelWidth === this.lastPixelWidth && pixelHeight === this.lastPixelHeight) {
+            return;
+        }
+
+        this.lastPixelWidth = pixelWidth;
+        this.lastPixelHeight = pixelHeight;
+
+        canvas.width = pixelWidth;
+        canvas.height = pixelHeight;
 
         const context = canvas.getContext('2d');
         context?.setTransform(dpr, 0, 0, dpr, 0, 0);

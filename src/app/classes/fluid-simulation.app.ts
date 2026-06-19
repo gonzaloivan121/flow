@@ -15,7 +15,9 @@ export interface Particle {
     pressure: number;
     mass: number;
     radius: number;
-    color: string;
+    colorIndex: number;
+    cellX: number;
+    cellY: number;
 }
 
 /**
@@ -84,11 +86,38 @@ export interface Coloring {
     backgroundColor: RgbColor; // Canvas background fill color
 }
 
+export interface PerformanceSettings {
+    useSpriteRendering: boolean;
+    snapSpritesToPixels: boolean;
+    reuseParticlePool: boolean;
+    reuseSpatialBuckets: boolean;
+    showMouseIndicator: boolean;
+    showHud: boolean;
+    pauseWhenHidden: boolean;
+    maxFps: number;
+}
+
 export class FluidSimulationApp implements IApplication {
+    private static readonly COLOR_STEPS = 256;
+
     private input!: InputManager;
 
     private particles: Particle[] = [];
-    private spatialBuckets = new Map<string, Particle[]>();
+    private particlePool: Particle[] = [];
+    private spatialBuckets = new Map<number, Map<number, Particle[]>>();
+    private activeBuckets: Particle[][] = [];
+    private gradientColors: string[] = new Array<string>(FluidSimulationApp.COLOR_STEPS);
+    private cachedBackgroundCss: string = 'rgb(15, 23, 42)';
+    private cachedHoverCss: string = 'rgb(56, 189, 248)';
+    private cachedHoverFillCss: string = 'rgba(56, 189, 248, 0.14)';
+    private cachedActiveCss: string = 'rgb(248, 113, 113)';
+    private cachedActiveFillCss: string = 'rgba(248, 113, 113, 0.14)';
+    private particleSprites: HTMLCanvasElement[] = new Array(FluidSimulationApp.COLOR_STEPS);
+    private spriteCacheKey = '';
+    private spriteRadius = 0;
+    private spriteOffset = 0;
+    private gradientKey = '';
+    private surfaceColorKey = '';
 
     public physics: Physics = {
         gravity: new Vector2(0, 9.81),
@@ -125,6 +154,17 @@ export class FluidSimulationApp implements IApplication {
         backgroundColor: { r: 15, g: 23, b: 42 },
     };
 
+    public performance: PerformanceSettings = {
+        useSpriteRendering: false,
+        snapSpritesToPixels: false,
+        reuseParticlePool: true,
+        reuseSpatialBuckets: true,
+        showMouseIndicator: true,
+        showHud: true,
+        pauseWhenHidden: true,
+        maxFps: 0,
+    };
+
     private readonly defaultColoring: Coloring = {
         slowColor: { r: 56, g: 189, b: 248 },
         fastColor: { r: 255, g: 242, b: 248 },
@@ -133,6 +173,7 @@ export class FluidSimulationApp implements IApplication {
 
     public Initialize(width: number, height: number, input: InputManager): void {
         this.input = input;
+        this.RefreshColorCaches();
         this.Restart(width, height);
     }
 
@@ -169,30 +210,80 @@ export class FluidSimulationApp implements IApplication {
         Object.assign(this.coloring.slowColor, this.defaultColoring.slowColor);
         Object.assign(this.coloring.fastColor, this.defaultColoring.fastColor);
         Object.assign(this.coloring.backgroundColor, this.defaultColoring.backgroundColor);
+        Object.assign(this.performance, {
+            useSpriteRendering: false,
+            snapSpritesToPixels: false,
+            reuseParticlePool: true,
+            reuseSpatialBuckets: true,
+            showMouseIndicator: true,
+            showHud: true,
+            pauseWhenHidden: true,
+            maxFps: 0,
+        });
+        this.RefreshColorCaches();
     }
 
     public Restart(width: number, height: number): void {
-        this.particles = [];
+        this.particles.length = 0;
 
         const cols: number = this.simulation.particleColumns;
         const rows: number = this.simulation.particleRows;
+        const totalParticles = cols * rows;
         const spacing: number = this.simulation.initialSpacing;
+        const particleMass = this.simulation.particleMass;
+        const particleRadius = this.simulation.particleRadius;
         const startX: number = (width - cols * spacing) / 2;
         const startY: number = (height - rows * spacing) / 2;
+        const baseColorIndex = 0;
 
-        for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < cols; c++) {
-                const particle: Particle = {
-                    position: new Vector2(startX + c * spacing, startY + r * spacing),
+        if (this.performance.reuseParticlePool && this.particlePool.length < totalParticles) {
+            for (let i = this.particlePool.length; i < totalParticles; i++) {
+                this.particlePool.push({
+                    position: new Vector2(),
                     velocity: new Vector2(),
                     density: 0,
                     pressure: 0,
-                    mass: this.simulation.particleMass,
-                    radius: this.simulation.particleRadius,
-                    color: this.ColorToCss(this.coloring.slowColor),
-                };
+                    mass: particleMass,
+                    radius: particleRadius,
+                    colorIndex: baseColorIndex,
+                    cellX: 0,
+                    cellY: 0,
+                });
+            }
+        }
 
-                this.particles.push(particle);
+        this.particles = this.performance.reuseParticlePool
+            ? this.particlePool.slice(0, totalParticles)
+            : new Array(totalParticles);
+
+        let index = 0;
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const particle = this.particles[index++];
+                if (!particle) {
+                    this.particles[index - 1] = {
+                        position: new Vector2(),
+                        velocity: new Vector2(),
+                        density: 0,
+                        pressure: 0,
+                        mass: particleMass,
+                        radius: particleRadius,
+                        colorIndex: baseColorIndex,
+                        cellX: 0,
+                        cellY: 0,
+                    };
+                }
+
+                const currentParticle = this.particles[index - 1];
+                currentParticle.position.x = startX + c * spacing;
+                currentParticle.position.y = startY + r * spacing;
+                currentParticle.velocity.x = 0;
+                currentParticle.velocity.y = 0;
+                currentParticle.density = 0;
+                currentParticle.pressure = 0;
+                currentParticle.mass = particleMass;
+                currentParticle.radius = particleRadius;
+                currentParticle.colorIndex = baseColorIndex;
             }
         }
     }
@@ -202,13 +293,15 @@ export class FluidSimulationApp implements IApplication {
         const dt: number = Math.min(ts, this.simulation.maxTimestep);
         const smoothingRadius = this.physics.smoothingRadius;
 
+        this.RefreshColorCaches();
+
         this.BuildSpatialBuckets(smoothingRadius);
 
         this.ComputeDensity(smoothingRadius);
         this.ComputePressure();
         this.ApplyForces(dt, smoothingRadius);
         this.UpdatePositions(dt, width, height);
-        this.UpdateColors(dt);
+        this.UpdateColors();
     }
 
     private ComputeDensity(smoothingRadius: number): void {
@@ -220,18 +313,38 @@ export class FluidSimulationApp implements IApplication {
         const particles = this.particles;
 
         // Compute localized density profiles
-        for (const p1 of particles) {
+        for (let i = 0; i < particles.length; i++) {
+            const p1 = particles[i];
             let densitySum: number = 0;
+            const centerX = p1.cellX;
+            const centerY = p1.cellY;
 
-            for (const p2 of this.GetNearbyParticles(p1, smoothingRadius)) {
-                const dx: number = p2.position.x - p1.position.x;
-                const dy: number = p2.position.y - p1.position.y;
-                const distSq: number = dx * dx + dy * dy;
+            for (let x = centerX - 1; x <= centerX + 1; x++) {
+                const row = this.spatialBuckets.get(x);
 
-                if (distSq < hSq) {
-                    // Standard SPH spiky kernel approximation
-                    const delta = hSq - distSq;
-                    densitySum += p2.mass * delta * delta * delta;
+                if (!row) {
+                    continue;
+                }
+
+                for (let y = centerY - 1; y <= centerY + 1; y++) {
+                    const bucket = row.get(y);
+
+                    if (!bucket) {
+                        continue;
+                    }
+
+                    for (let j = 0; j < bucket.length; j++) {
+                        const p2 = bucket[j];
+                        const dx: number = p2.position.x - p1.position.x;
+                        const dy: number = p2.position.y - p1.position.y;
+                        const distSq: number = dx * dx + dy * dy;
+
+                        if (distSq < hSq) {
+                            // Standard SPH spiky kernel approximation
+                            const delta = hSq - distSq;
+                            densitySum += p2.mass * delta * delta * delta;
+                        }
+                    }
                 }
             }
 
@@ -246,7 +359,8 @@ export class FluidSimulationApp implements IApplication {
         const particles = this.particles;
 
         // Compute state pressure equation (Ideal Gas / SPH state derivation)
-        for (const p1 of particles) {
+        for (let i = 0; i < particles.length; i++) {
+            const p1 = particles[i];
             const densityRatio: number = p1.density / targetDensity;
             p1.pressure = pressureStiffness * (densityRatio * densityRatio - 1.0);
 
@@ -265,6 +379,7 @@ export class FluidSimulationApp implements IApplication {
         const gravityY = this.physics.gravity.y * this.physics.gravityMultiplier;
         const damping = this.physics.globalDamping;
         const mouseRadius: number = this.interaction.mouseRadius;
+        const mouseRadiusSq: number = mouseRadius * mouseRadius;
         const mouseForce: number = this.interaction.mouseForce;
         const particles = this.particles;
 
@@ -274,49 +389,67 @@ export class FluidSimulationApp implements IApplication {
         const spikyGrad: number = 30.0 / (Math.PI * hPow5);
         const viscLap: number = 20.0 / (Math.PI * hPow5);
 
-        for (const p1 of particles) {
+        for (let i = 0; i < particles.length; i++) {
+            const p1 = particles[i];
             let pForceX: number = 0;
             let pForceY: number = 0;
             let vForceX: number = 0;
             let vForceY: number = 0;
+            const centerX = p1.cellX;
+            const centerY = p1.cellY;
 
-            for (const p2 of this.GetNearbyParticles(p1, h)) {
-                if (p1 === p2) {
+            for (let x = centerX - 1; x <= centerX + 1; x++) {
+                const row = this.spatialBuckets.get(x);
+
+                if (!row) {
                     continue;
                 }
 
-                let diffX: number = p2.position.x - p1.position.x;
-                let diffY: number = p2.position.y - p1.position.y;
+                for (let y = centerY - 1; y <= centerY + 1; y++) {
+                    const bucket = row.get(y);
 
-                if (diffX === 0 && diffY === 0) {
-                    diffX = (Math.random() - 0.5) * 0.01;
-                    diffY = (Math.random() - 0.5) * 0.01;
-                }
+                    if (!bucket) {
+                        continue;
+                    }
 
-                const dist: number = Math.sqrt(diffX * diffX + diffY * diffY);
+                    for (let j = 0; j < bucket.length; j++) {
+                        const p2 = bucket[j];
 
-                if (dist < h) {
-                    const dirX: number = diffX / dist;
-                    const dirY: number = diffY / dist;
+                        if (p1 === p2) {
+                            continue;
+                        }
 
-                    // Fluid Pressure Vector Math (pushing from high density area to low)
-                    const pGrad: number =
-                        ((p1.pressure + p2.pressure) / (2.0 * p2.density)) *
-                        spikyGrad *
-                        (h - dist) *
-                        (h - dist);
+                        const diffX: number = p2.position.x - p1.position.x;
+                        const diffY: number = p2.position.y - p1.position.y;
+                        const distSq: number = diffX * diffX + diffY * diffY;
 
-                    pForceX -= dirX * pGrad * p2.mass;
-                    pForceY -= dirY * pGrad * p2.mass;
+                        if (distSq >= hSq || distSq <= 1e-12) {
+                            continue;
+                        }
 
-                    // Viscosity Linear Shear (Frictional fluid damping between nodes)
-                    const vDiffX: number = p2.velocity.x - p1.velocity.x;
-                    const vDiffY: number = p2.velocity.y - p1.velocity.y;
-                    const laplacian: number = viscLap * (h - dist);
+                        const dist: number = Math.sqrt(distSq);
+                        const invDist: number = 1 / dist;
+                        const dirX: number = diffX * invDist;
+                        const dirY: number = diffY * invDist;
 
-                    // SYMMETRICAL FORCE: Multiply by p2.mass
-                    vForceX += vDiffX * (viscosity / p2.density) * laplacian * p2.mass;
-                    vForceY += vDiffY * (viscosity / p2.density) * laplacian * p2.mass;
+                        // Fluid Pressure Vector Math (pushing from high density area to low)
+                        const pressureRatio = (p1.pressure + p2.pressure) / (2.0 * p2.density);
+                        const hMinusDist = h - dist;
+                        const pGrad: number = pressureRatio * spikyGrad * hMinusDist * hMinusDist;
+
+                        pForceX -= dirX * pGrad * p2.mass;
+                        pForceY -= dirY * pGrad * p2.mass;
+
+                        // Viscosity Linear Shear (Frictional fluid damping between nodes)
+                        const vDiffX: number = p2.velocity.x - p1.velocity.x;
+                        const vDiffY: number = p2.velocity.y - p1.velocity.y;
+                        const laplacian: number = viscLap * hMinusDist;
+
+                        // SYMMETRICAL FORCE: Multiply by p2.mass
+                        const viscosityTerm = (viscosity / p2.density) * laplacian * p2.mass;
+                        vForceX += vDiffX * viscosityTerm;
+                        vForceY += vDiffY * viscosityTerm;
+                    }
                 }
             }
 
@@ -336,62 +469,89 @@ export class FluidSimulationApp implements IApplication {
             if (isInteracting) {
                 const toMouseX: number = mousePosition.x - p1.position.x;
                 const toMouseY: number = mousePosition.y - p1.position.y;
-                const mouseDist: number = Math.sqrt(toMouseX * toMouseX + toMouseY * toMouseY);
+                const mouseDistSq: number = toMouseX * toMouseX + toMouseY * toMouseY;
 
-                if (mouseDist < mouseRadius && mouseDist > 1) {
+                if (mouseDistSq < mouseRadiusSq && mouseDistSq > 1) {
+                    const invMouseDist = 1 / Math.sqrt(mouseDistSq);
                     // Left click acts like an underwater agitator/impeller
-                    p1.velocity.x += (toMouseX / mouseDist) * mouseForce * dt;
-                    p1.velocity.y += (toMouseY / mouseDist) * mouseForce * dt;
+                    p1.velocity.x += toMouseX * invMouseDist * mouseForce * dt;
+                    p1.velocity.y += toMouseY * invMouseDist * mouseForce * dt;
                 }
             }
         }
     }
 
     private BuildSpatialBuckets(cellSize: number): void {
-        this.spatialBuckets.clear();
+        if (!this.performance.reuseSpatialBuckets) {
+            this.spatialBuckets.clear();
 
-        for (const particle of this.particles) {
-            const key = this.GetCellKey(particle.position.x, particle.position.y, cellSize);
-            const bucket = this.spatialBuckets.get(key);
+            for (let i = 0; i < this.particles.length; i++) {
+                const particle = this.particles[i];
+                const cellX = Math.floor(particle.position.x / cellSize);
+                const cellY = Math.floor(particle.position.y / cellSize);
+                particle.cellX = cellX;
+                particle.cellY = cellY;
 
-            if (bucket) {
-                bucket.push(particle);
-                continue;
-            }
+                let row = this.spatialBuckets.get(cellX);
 
-            this.spatialBuckets.set(key, [particle]);
-        }
-    }
-
-    private GetNearbyParticles(center: Particle, cellSize: number): Particle[] {
-        const nearby: Particle[] = [];
-        const centerX = Math.floor(center.position.x / cellSize);
-        const centerY = Math.floor(center.position.y / cellSize);
-
-        for (let x = centerX - 1; x <= centerX + 1; x++) {
-            for (let y = centerY - 1; y <= centerY + 1; y++) {
-                const bucket = this.spatialBuckets.get(`${x},${y}`);
-
-                if (!bucket) {
-                    continue;
+                if (!row) {
+                    row = new Map<number, Particle[]>();
+                    this.spatialBuckets.set(cellX, row);
                 }
 
-                nearby.push(...bucket);
+                let bucket = row.get(cellY);
+
+                if (!bucket) {
+                    bucket = [];
+                    row.set(cellY, bucket);
+                }
+
+                bucket.push(particle);
             }
+
+            return;
         }
 
-        return nearby;
-    }
+        for (let i = 0; i < this.activeBuckets.length; i++) {
+            this.activeBuckets[i].length = 0;
+        }
+        this.activeBuckets.length = 0;
 
-    private GetCellKey(x: number, y: number, cellSize: number): string {
-        return `${Math.floor(x / cellSize)},${Math.floor(y / cellSize)}`;
+        for (let i = 0; i < this.particles.length; i++) {
+            const particle = this.particles[i];
+            const cellX = Math.floor(particle.position.x / cellSize);
+            const cellY = Math.floor(particle.position.y / cellSize);
+            particle.cellX = cellX;
+            particle.cellY = cellY;
+
+            let row = this.spatialBuckets.get(cellX);
+
+            if (!row) {
+                row = new Map<number, Particle[]>();
+                this.spatialBuckets.set(cellX, row);
+            }
+
+            let bucket = row.get(cellY);
+
+            if (!bucket) {
+                bucket = [];
+                row.set(cellY, bucket);
+            }
+
+            if (bucket.length === 0) {
+                this.activeBuckets.push(bucket);
+            }
+
+            bucket.push(particle);
+        }
     }
 
     private UpdatePositions(dt: number, width: number, height: number): void {
         const bounce: number = this.physics.wallBounce;
         const friction: number = this.physics.wallFriction;
 
-        for (const particle of this.particles) {
+        for (let i = 0; i < this.particles.length; i++) {
+            const particle = this.particles[i];
             particle.position.x += particle.velocity.x * dt;
             particle.position.y += particle.velocity.y * dt;
 
@@ -433,11 +593,31 @@ export class FluidSimulationApp implements IApplication {
     private NormalizeRgbColor(value: unknown, fallback: RgbColor): RgbColor {
         if (typeof value === 'object' && value !== null) {
             const channelRecord = value as Record<string, unknown>;
+            const r = channelRecord['r'];
+            const g = channelRecord['g'];
+            const b = channelRecord['b'];
+
+            if (
+                typeof r === 'number' &&
+                typeof g === 'number' &&
+                typeof b === 'number' &&
+                Number.isInteger(r) &&
+                Number.isInteger(g) &&
+                Number.isInteger(b) &&
+                r >= 0 &&
+                r <= 255 &&
+                g >= 0 &&
+                g <= 255 &&
+                b >= 0 &&
+                b <= 255
+            ) {
+                return value as RgbColor;
+            }
 
             return {
-                r: this.ClampColorChannel(Number(channelRecord['r'])),
-                g: this.ClampColorChannel(Number(channelRecord['g'])),
-                b: this.ClampColorChannel(Number(channelRecord['b'])),
+                r: this.ClampColorChannel(Number(r)),
+                g: this.ClampColorChannel(Number(g)),
+                b: this.ClampColorChannel(Number(b)),
             };
         }
 
@@ -464,76 +644,313 @@ export class FluidSimulationApp implements IApplication {
         return `rgb(${color.r}, ${color.g}, ${color.b})`;
     }
 
-    private UpdateColors(dt: number): void {
+    private EnsureParticleSprites(radius: number): void {
+        const diameter = Math.max(2, Math.ceil(radius * 2) + 2);
+        const offset = diameter / 2;
+        const cacheKey = `${this.gradientKey}|${diameter}`;
+
+        if (cacheKey === this.spriteCacheKey) {
+            return;
+        }
+
+        for (let i = 0; i < FluidSimulationApp.COLOR_STEPS; i++) {
+            let sprite = this.particleSprites[i];
+
+            if (!sprite || sprite.width !== diameter || sprite.height !== diameter) {
+                sprite = document.createElement('canvas');
+                sprite.width = diameter;
+                sprite.height = diameter;
+                this.particleSprites[i] = sprite;
+            }
+
+            const spriteCtx = sprite.getContext('2d');
+
+            if (!spriteCtx) {
+                continue;
+            }
+
+            spriteCtx.clearRect(0, 0, diameter, diameter);
+            spriteCtx.fillStyle = this.gradientColors[i];
+            spriteCtx.beginPath();
+            spriteCtx.arc(offset, offset, radius, 0, 2 * Math.PI);
+            spriteCtx.fill();
+        }
+
+        this.spriteRadius = radius;
+        this.spriteOffset = offset;
+        this.spriteCacheKey = cacheKey;
+    }
+
+    private RefreshColorCaches(): void {
         this.coloring.slowColor = this.NormalizeRgbColor(
             this.coloring.slowColor,
-            this.defaultColoring.slowColor
+            this.defaultColoring.slowColor,
         );
         this.coloring.fastColor = this.NormalizeRgbColor(
             this.coloring.fastColor,
-            this.defaultColoring.fastColor
+            this.defaultColoring.fastColor,
         );
         this.coloring.backgroundColor = this.NormalizeRgbColor(
             this.coloring.backgroundColor,
-            this.defaultColoring.backgroundColor
+            this.defaultColoring.backgroundColor,
         );
 
-        const { r: sr, g: sg, b: sb } = this.coloring.slowColor;
-        const { r: fr, g: fg, b: fb } = this.coloring.fastColor;
-        const colorIntensity: number = this.interaction.colorIntensity;
+        this.interaction.mouseHoverColor = this.NormalizeRgbColor(
+            this.interaction.mouseHoverColor,
+            {
+                r: 56,
+                g: 189,
+                b: 248,
+            },
+        );
+        this.interaction.mouseActiveColor = this.NormalizeRgbColor(
+            this.interaction.mouseActiveColor,
+            {
+                r: 248,
+                g: 113,
+                b: 113,
+            },
+        );
 
-        for (const particle of this.particles) {
-            // Dynamic color tracking based on velocity magnitude (visually indicates waves/energy)
-            const speed: number = particle.velocity.magnitude;
-            const t: number = Math.min((speed * colorIntensity) / 255, 1.0);
-            const r: number = Math.round(sr + (fr - sr) * t);
-            const g: number = Math.round(sg + (fg - sg) * t);
-            const b: number = Math.round(sb + (fb - sb) * t);
-            particle.color = `rgb(${r}, ${g}, ${b})`;
+        const slow = this.coloring.slowColor;
+        const fast = this.coloring.fastColor;
+
+        const gradientKey = `${slow.r},${slow.g},${slow.b}|${fast.r},${fast.g},${fast.b}`;
+
+        if (gradientKey !== this.gradientKey) {
+            for (let i = 0; i < FluidSimulationApp.COLOR_STEPS; i++) {
+                const t = i / (FluidSimulationApp.COLOR_STEPS - 1);
+                const r = Math.round(slow.r + (fast.r - slow.r) * t);
+                const g = Math.round(slow.g + (fast.g - slow.g) * t);
+                const b = Math.round(slow.b + (fast.b - slow.b) * t);
+                this.gradientColors[i] = `rgb(${r}, ${g}, ${b})`;
+            }
+
+            this.gradientKey = gradientKey;
+        }
+
+        const background = this.coloring.backgroundColor;
+        const hover = this.interaction.mouseHoverColor;
+        const active = this.interaction.mouseActiveColor;
+        const surfaceColorKey = `${background.r},${background.g},${background.b}|${hover.r},${hover.g},${hover.b}|${active.r},${active.g},${active.b}`;
+
+        if (surfaceColorKey !== this.surfaceColorKey) {
+            this.cachedBackgroundCss = this.ColorToCss(background);
+            this.cachedHoverCss = this.ColorToCss(hover);
+            this.cachedHoverFillCss = `rgba(${hover.r}, ${hover.g}, ${hover.b}, 0.14)`;
+            this.cachedActiveCss = this.ColorToCss(active);
+            this.cachedActiveFillCss = `rgba(${active.r}, ${active.g}, ${active.b}, 0.14)`;
+            this.surfaceColorKey = surfaceColorKey;
         }
     }
 
-    Draw(ctx: CanvasRenderingContext2D, width: number, height: number): void {
-        ctx.fillStyle = this.ColorToCss(this.coloring.backgroundColor);
+    private UpdateColors(): void {
+        const colorIntensity: number = this.interaction.colorIntensity;
+
+        for (let i = 0; i < this.particles.length; i++) {
+            const particle = this.particles[i];
+            // Dynamic color tracking based on velocity magnitude (visually indicates waves/energy)
+            const vx = particle.velocity.x;
+            const vy = particle.velocity.y;
+            const speed: number = Math.sqrt(vx * vx + vy * vy);
+            const index = Math.max(
+                0,
+                Math.min(FluidSimulationApp.COLOR_STEPS - 1, Math.round(speed * colorIntensity)),
+            );
+            particle.colorIndex = index;
+        }
+    }
+
+    Draw(ctx: CanvasRenderingContext2D, width: number, height: number, ts: number): void {
+        this.DrawBackground(ctx, width, height);
+        this.DrawParticles(ctx);
+        this.DrawMouseIndicator(ctx);
+        this.DrawHUD(ctx, ts);
+    }
+
+    private DrawBackground(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+        ctx.fillStyle = this.cachedBackgroundCss;
         ctx.fillRect(0, 0, width, height);
+    }
+
+    private DrawParticles(ctx: CanvasRenderingContext2D): void {
+        if (this.particles.length <= 0) {
+            return;
+        }
 
         // Draw fluid particles
-        for (const particle of this.particles) {
-            ctx.beginPath();
-            ctx.arc(particle.position.x, particle.position.y, particle.radius, 0, 2 * Math.PI);
-            ctx.fillStyle = particle.color;
-            ctx.fill();
+        if (this.performance.useSpriteRendering) {
+            this.DrawParticlesSprite(ctx);
+        } else {
+            this.DrawParticlesPath(ctx);
+        }
+    }
+
+    private DrawParticlesSprite(ctx: CanvasRenderingContext2D): void {
+        const firstRadius = this.particles[0].radius;
+        this.EnsureParticleSprites(firstRadius);
+
+        const spriteOffset = this.spriteOffset;
+        const snapSprites = this.performance.snapSpritesToPixels;
+
+        for (let i = 0; i < this.particles.length; i++) {
+            const particle = this.particles[i];
+            const sprite = this.particleSprites[particle.colorIndex];
+
+            if (sprite) {
+                const drawX = particle.position.x - spriteOffset;
+                const drawY = particle.position.y - spriteOffset;
+                ctx.drawImage(
+                    sprite,
+                    snapSprites ? Math.round(drawX) : drawX,
+                    snapSprites ? Math.round(drawY) : drawY,
+                );
+                continue;
+            }
+
+            this.DrawParticle(ctx, particle);
+        }
+    }
+
+    private DrawParticlesPath(ctx: CanvasRenderingContext2D): void {
+        for (let i = 0; i < this.particles.length; i++) {
+            const particle = this.particles[i];
+            this.DrawParticle(ctx, particle);
+        }
+    }
+
+    private DrawParticle(ctx: CanvasRenderingContext2D, particle: Particle): void {
+        ctx.beginPath();
+        ctx.arc(particle.position.x, particle.position.y, particle.radius, 0, 2 * Math.PI);
+        ctx.fillStyle = this.gradientColors[particle.colorIndex];
+        ctx.fill();
+    }
+
+    private DrawMouseIndicator(ctx: CanvasRenderingContext2D): void {
+        if (!this.performance.showMouseIndicator || !this.input.IsMouseOverCanvas()) {
+            return;
         }
 
-        if (this.input.IsMouseOverCanvas()) {
-            const mousePosition: Vector2 = this.input.MousePosition();
-            const radius: number = this.interaction.mouseRadius;
-            const isInteracting: boolean = this.input.MouseDown();
-            const indicatorColor = isInteracting
-                ? this.NormalizeRgbColor(this.interaction.mouseActiveColor, { r: 248, g: 113, b: 113 })
-                : this.NormalizeRgbColor(this.interaction.mouseHoverColor, { r: 56, g: 189, b: 248 });
-            const indicatorCss: string = this.ColorToCss(indicatorColor);
+        const mousePosition: Vector2 = this.input.MousePosition();
+        const radius: number = this.interaction.mouseRadius;
+        const isInteracting: boolean = this.input.MouseDown();
+        const indicatorCss: string = isInteracting
+            ? this.cachedActiveCss
+            : this.cachedHoverCss;
+        const indicatorFillCss: string = isInteracting
+            ? this.cachedActiveFillCss
+            : this.cachedHoverFillCss;
 
-            ctx.save();
-            ctx.lineWidth = 2;
-            ctx.strokeStyle = indicatorCss;
-            ctx.fillStyle = `rgba(${indicatorColor.r}, ${indicatorColor.g}, ${indicatorColor.b}, 0.14)`;
-            ctx.beginPath();
-            ctx.arc(mousePosition.x, mousePosition.y, radius, 0, 2 * Math.PI);
-            ctx.fill();
-            ctx.stroke();
+        ctx.save();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = indicatorCss;
+        ctx.fillStyle = indicatorFillCss;
+        ctx.beginPath();
+        ctx.arc(mousePosition.x, mousePosition.y, radius, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.stroke();
 
-            ctx.beginPath();
-            ctx.arc(mousePosition.x, mousePosition.y, 3, 0, 2 * Math.PI);
-            ctx.fillStyle = indicatorCss;
-            ctx.fill();
-            ctx.restore();
+        ctx.beginPath();
+        ctx.arc(mousePosition.x, mousePosition.y, 3, 0, 2 * Math.PI);
+        ctx.fillStyle = indicatorCss;
+        ctx.fill();
+        ctx.restore();
+    }
+
+    private DrawHUD(ctx: CanvasRenderingContext2D, ts: number): void {
+        if (!this.performance.showHud) {
+            return;
         }
 
-        // Context HUD
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-        ctx.font = 'bold 12px monospace';
-        ctx.fillText(`FLUID PARTICLES: ${this.particles.length}`, 20, 30);
-        ctx.fillText(`MOUSE ACTIONS: CLICK AND DRAG TO AGITATE WAVE GENERATION`, 20, 50);
+        const fps = ts > 0 ? Math.round(1 / ts) : 0;
+        const ms = ts * 1000;
+        const particles = this.particles.length;
+        const isHovering = this.input.IsMouseOverCanvas();
+        const isInteracting = this.input.MouseDown();
+
+        const x = 16;
+        const y = 16;
+        const width = 266;
+        const height = 110;
+        const radius = 16;
+
+        ctx.save();
+        ctx.shadowColor = 'rgba(2, 6, 23, 0.24)';
+        ctx.shadowBlur = 18;
+        ctx.shadowOffsetY = 6;
+
+        this.RoundRect(ctx, x, y, width, height, radius);
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.72)';
+        ctx.fill();
+
+        ctx.shadowColor = 'transparent';
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.18)';
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.95)';
+        this.RoundRect(ctx, x + 14, y + 14, 10, 10, 3);
+        ctx.fill();
+
+        ctx.fillStyle = 'rgba(248, 250, 252, 0.95)';
+        ctx.font = '700 12px "Segoe UI", system-ui, sans-serif';
+        ctx.fillText('SIMULATION STATUS', x + 32, y + 24);
+
+        ctx.fillStyle = 'rgba(226, 232, 240, 0.86)';
+        ctx.font = '500 11px "Segoe UI", system-ui, sans-serif';
+        ctx.fillText(`Particles: ${particles}`, x + 16, y + 48);
+        ctx.fillText(`FPS: ${fps}`, x + 16, y + 67);
+        ctx.fillText(`Frame: ${ms.toFixed(2)} ms`, x + 16, y + 86);
+
+        const statusLabel = isHovering ? (isInteracting ? 'AGITATING' : 'INTERACTIVE') : 'IDLE';
+        const statusFill = isInteracting
+            ? 'rgba(248, 113, 113, 0.18)'
+            : isHovering
+                ? 'rgba(56, 189, 248, 0.18)'
+                : 'rgba(148, 163, 184, 0.12)';
+        const statusText = isInteracting ? 'rgba(254, 226, 226, 0.96)' : 'rgba(226, 232, 240, 0.95)';
+
+        this.RoundRect(ctx, x + 166, y + 18, 84, 22, 11);
+        ctx.fillStyle = statusFill;
+        ctx.fill();
+        ctx.strokeStyle = isInteracting
+            ? 'rgba(248, 113, 113, 0.26)'
+            : isHovering
+                ? 'rgba(56, 189, 248, 0.26)'
+                : 'rgba(148, 163, 184, 0.16)';
+        ctx.stroke();
+        ctx.fillStyle = statusText;
+        ctx.font = '700 10px "Segoe UI", system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(statusLabel, x + 208, y + 29);
+
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        ctx.restore();
+    }
+
+    private RoundRect(
+        ctx: CanvasRenderingContext2D,
+        x: number,
+        y: number,
+        width: number,
+        height: number,
+        radius: number,
+    ): void {
+        const right = x + width;
+        const bottom = y + height;
+
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(right - radius, y);
+        ctx.quadraticCurveTo(right, y, right, y + radius);
+        ctx.lineTo(right, bottom - radius);
+        ctx.quadraticCurveTo(right, bottom, right - radius, bottom);
+        ctx.lineTo(x + radius, bottom);
+        ctx.quadraticCurveTo(x, bottom, x, bottom - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
     }
 }
