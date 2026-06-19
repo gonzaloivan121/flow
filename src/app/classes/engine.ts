@@ -35,7 +35,17 @@ export class Engine {
         this.app = app;
         this.inputManager = new InputManager(canvas);
 
-        this.app.Initialize(canvas.width, canvas.height, this.inputManager);
+        this.app.Initialize(this.LogicalWidth(), this.LogicalHeight(), this.inputManager);
+    }
+
+    private LogicalWidth(): number {
+        const dpr = Math.max(1, window.devicePixelRatio || 1);
+        return this.canvas.width / dpr;
+    }
+
+    private LogicalHeight(): number {
+        const dpr = Math.max(1, window.devicePixelRatio || 1);
+        return this.canvas.height / dpr;
     }
 
     private Loop = (currentTime: number): void => {
@@ -48,8 +58,11 @@ export class Engine {
         this.lastTickTime = currentTime;
 
         // Orchestrate update and render cycles
-        this.app.Update(ts, this.canvas.width, this.canvas.height);
-        this.app.Draw(this.ctx, this.canvas.width, this.canvas.height);
+        const width = this.LogicalWidth();
+        const height = this.LogicalHeight();
+
+        this.app.Update(ts, width, height);
+        this.app.Draw(this.ctx, width, height);
 
         this.animationFrameId = requestAnimationFrame(this.Loop);
     };

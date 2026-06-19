@@ -4,6 +4,7 @@ export class InputManager {
     private keys: Set<string> = new Set<string>();
     private mousePosition: Vector2 = new Vector2();
     private mouseClicked: boolean = false;
+    private mouseOverCanvas: boolean = false;
 
     private OnKeyDown = (event: KeyboardEvent) => this.keys.add(event.key);
     private OnKeyUp = (event: KeyboardEvent) => this.keys.delete(event.key);
@@ -15,7 +16,15 @@ export class InputManager {
         this.mousePosition.y = event.clientY - rect.top;
     };
 
-    private OnMouseDown = () => (this.mouseClicked = true);
+    private OnMouseEnter = () => (this.mouseOverCanvas = true);
+    private OnMouseLeave = () => {
+        this.mouseOverCanvas = false;
+        this.mouseClicked = false;
+    };
+
+    private OnMouseDown = () => {
+        this.mouseClicked = this.mouseOverCanvas;
+    };
     private OnMouseUp = () => (this.mouseClicked = false);
 
     constructor(private canvas: HTMLCanvasElement) {
@@ -28,9 +37,11 @@ export class InputManager {
         window.addEventListener('keyup', this.OnKeyUp);
 
         // Mouse Events
+        this.canvas.addEventListener('mouseenter', this.OnMouseEnter);
+        this.canvas.addEventListener('mouseleave', this.OnMouseLeave);
         this.canvas.addEventListener('mousemove', this.OnMouseMove);
         this.canvas.addEventListener('mousedown', this.OnMouseDown);
-        this.canvas.addEventListener('mouseup', this.OnMouseUp);
+        window.addEventListener('mouseup', this.OnMouseUp);
     }
 
     public KeyPressed(key: string): boolean {
@@ -45,6 +56,10 @@ export class InputManager {
         return this.mouseClicked;
     }
 
+    public IsMouseOverCanvas(): boolean {
+        return this.mouseOverCanvas;
+    }
+
     /**
      * Shuts down the `InputManager`.
      *
@@ -56,8 +71,10 @@ export class InputManager {
         window.removeEventListener('keyup', this.OnKeyUp);
 
         // Mouse Events
+        this.canvas.removeEventListener('mouseenter', this.OnMouseEnter);
+        this.canvas.removeEventListener('mouseleave', this.OnMouseLeave);
         this.canvas.removeEventListener('mousemove', this.OnMouseMove);
         this.canvas.removeEventListener('mousedown', this.OnMouseDown);
-        this.canvas.removeEventListener('mouseup', this.OnMouseUp);
+        window.removeEventListener('mouseup', this.OnMouseUp);
     }
 }
