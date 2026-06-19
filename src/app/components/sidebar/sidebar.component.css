@@ -63,3 +63,58 @@
 	padding: 0.5rem 0.75rem 0.75rem;
 	background: transparent;
 }
+
+.perf-toggle {
+	width: 1.05rem;
+	height: 1.05rem;
+	accent-color: rgb(8, 145, 178);
+	cursor: pointer;
+}
+
+:host ::ng-deep .p-select {
+	width: 100%;
+}
+
+.performance-preset-summary {
+	border-radius: 0.9rem;
+	border: 1px solid rgba(148, 163, 184, 0.22);
+	background: linear-gradient(135deg, rgba(15, 23, 42, 0.04), rgba(34, 211, 238, 0.08));
+	padding: 0.8rem 0.9rem;
+	display: grid;
+	gap: 0.45rem;
+}
+
+:host-context(.p-dark) .performance-preset-summary {
+	border-color: rgba(56, 189, 248, 0.16);
+	background: linear-gradient(135deg, rgba(2, 6, 23, 0.45), rgba(8, 47, 73, 0.28));
+}
+
+.performance-preset-summary__badge {
+	display: inline-flex;
+	width: fit-content;
+	align-items: center;
+	border-radius: 9999px;
+	padding: 0.2rem 0.6rem;
+	background: rgba(56, 189, 248, 0.14);
+	color: rgb(8, 145, 178);
+	font-size: 0.68rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+:host-context(.p-dark) .performance-preset-summary__badge {
+	background: rgba(56, 189, 248, 0.18);
+	color: rgb(186, 230, 253);
+}
+
+.performance-preset-summary__text {
+	margin: 0;
+	font-size: 0.78rem;
+	line-height: 1.45;
+	color: rgba(71, 85, 105, 0.95);
+}
+
+:host-context(.p-dark) .performance-preset-summary__text {
+	color: rgba(226, 232, 240, 0.92);
+}

@@ -86,6 +86,75 @@
             </p-accordion-content>
         </p-accordion-panel>
 
+        <p-accordion-panel [value]="'performance'">
+            <p-accordion-header>
+                Performance
+            </p-accordion-header>
+
+            <p-accordion-content>
+                <div class="mb-3">
+                    <label for="performance-preset" class="mb-2 block font-medium text-sm">Performance preset</label>
+                    <p-select
+                        inputId="performance-preset"
+                        [options]="performancePresets"
+                        optionLabel="label"
+                        optionValue="value"
+                        [(ngModel)]="selectedPerformancePreset"
+                        (ngModelChange)="ApplyPerformancePreset($event)"
+                        [placeholder]="'Choose a preset'"
+                        class="w-full"
+                    >
+                    </p-select>
+
+                    <div class="performance-preset-summary mt-3">
+                        <div class="performance-preset-summary__badge">
+                            {{ GetSelectedPerformancePreset().label }}
+                        </div>
+                        <p class="performance-preset-summary__text">
+                            {{ GetSelectedPerformancePreset().description }}
+                        </p>
+                    </div>
+                </div>
+
+                <table class="w-full text-sm mb-3">
+                    <tbody>
+                        @for (row of performanceRows(); track row.id) {
+                        <tr [pTooltip]="row.description">
+                            <td class="pr-2 py-2">
+                                <label [for]="row.id" class="font-medium">{{ row.name }}</label>
+                            </td>
+
+                            <td class="py-2">
+                                <div class="flex flex-row items-center w-full">
+                                    <p-slider [(ngModel)]="row.obj[row.key]" class="w-3/4 mr-4" [min]="row.min" [max]="row.max"
+                                        [step]="row.step" />
+                                    <p-inputnumber [inputId]="row.id" [(ngModel)]="row.obj[row.key]" class="w-1/4"
+                                        inputStyleClass="w-full" [min]="row.min" [max]="row.max" [step]="row.step" />
+                                </div>
+                            </td>
+                        </tr>
+                        }
+                    </tbody>
+                </table>
+
+                <table class="w-full text-sm">
+                    <tbody>
+                        @for (row of performanceToggleRows(); track row.id) {
+                        <tr [pTooltip]="row.description" class="align-middle">
+                            <td class="pr-2 py-2">
+                                <label [for]="row.id" class="font-medium">{{ row.name }}</label>
+                            </td>
+
+                            <td class="py-2 text-right">
+                                <p-checkbox [inputId]="row.id" [(ngModel)]="row.obj[row.key]" [binary]="true" />
+                            </td>
+                        </tr>
+                        }
+                    </tbody>
+                </table>
+            </p-accordion-content>
+        </p-accordion-panel>
+
         <p-accordion-panel [value]="'coloring'">
             <p-accordion-header>
                 Coloring

@@ -3,9 +3,11 @@ import { FormsModule } from '@angular/forms';
 
 import { AccordionModule } from 'primeng/accordion';
 import { SliderModule } from 'primeng/slider';
+import { SelectModule } from 'primeng/select';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { TooltipModule } from 'primeng/tooltip';
 import { ColorPickerModule } from 'primeng/colorpicker';
+import { CheckboxModule } from 'primeng/checkbox';
 
 import { FluidSimulationApp, RgbColor } from '../../classes/fluid-simulation.app';
 
@@ -27,14 +29,63 @@ interface ColorRow {
     key: string;
 }
 
+interface ToggleRow {
+    name: string;
+    description: string;
+    obj: Record<string, boolean>;
+    key: string;
+    id: string;
+}
+
+interface PerformancePreset {
+    label: string;
+    value: string;
+    description: string;
+}
+
 @Component({
     selector: 'app-sidebar',
-    imports: [FormsModule, AccordionModule, SliderModule, InputNumberModule, TooltipModule, ColorPickerModule],
+    imports: [
+        FormsModule,
+        AccordionModule,
+        SliderModule,
+        SelectModule,
+        InputNumberModule,
+        TooltipModule,
+        ColorPickerModule,
+        CheckboxModule,
+    ],
     templateUrl: './sidebar.component.html',
-    styleUrl: './sidebar.component.css',
+    styleUrls: ['./sidebar.component.css'],
 })
 export class SidebarComponent {
     readonly app = input.required<FluidSimulationApp>();
+    readonly performancePresets: PerformancePreset[] = [
+        {
+            label: 'Balanced',
+            value: 'balanced',
+            description: 'Keeps the smoother default rendering path and balanced simulation throughput.',
+        },
+        {
+            label: 'Smooth',
+            value: 'smooth',
+            description: 'Prioritizes visual smoothness and keeps the HUD visible.',
+        },
+        {
+            label: 'Max Throughput',
+            value: 'throughput',
+            description: 'Turns on the fastest rendering and trims extra overlays for raw performance.',
+        },
+    ];
+
+    selectedPerformancePreset = 'balanced';
+
+    GetSelectedPerformancePreset(): PerformancePreset {
+        return (
+            this.performancePresets.find((preset) => preset.value === this.selectedPerformancePreset) ??
+            this.performancePresets[0]
+        );
+    }
 
     physicsRows = computed<Row[]>(() => [
         {
@@ -241,6 +292,116 @@ export class SidebarComponent {
             min: 1,
             max: 50,
             step: 1,
+        },
+    ]);
+
+    performanceRows = computed<Row[]>(() => [
+        {
+            name: 'Max FPS',
+            description:
+                'Limits frame rate to reduce CPU/GPU usage. Set to 0 for uncapped rendering.',
+            obj: this.app().performance as unknown as Record<string, number>,
+            key: 'maxFps',
+            id: 'performance-max-fps',
+            min: 0,
+            max: 240,
+            step: 1,
+        },
+    ]);
+
+    ApplyPerformancePreset(preset: string): void {
+        const performance = this.app().performance;
+
+        switch (preset) {
+            case 'smooth':
+                Object.assign(performance, {
+                    useSpriteRendering: false,
+                    snapSpritesToPixels: false,
+                    reuseParticlePool: true,
+                    reuseSpatialBuckets: true,
+                    showMouseIndicator: true,
+                    showHud: true,
+                    pauseWhenHidden: true,
+                    maxFps: 0,
+                });
+                return;
+            case 'throughput':
+                Object.assign(performance, {
+                    useSpriteRendering: true,
+                    snapSpritesToPixels: true,
+                    reuseParticlePool: true,
+                    reuseSpatialBuckets: true,
+                    showMouseIndicator: false,
+                    showHud: false,
+                    pauseWhenHidden: true,
+                    maxFps: 45,
+                });
+                return;
+            default:
+                Object.assign(performance, {
+                    useSpriteRendering: false,
+                    snapSpritesToPixels: false,
+                    reuseParticlePool: true,
+                    reuseSpatialBuckets: true,
+                    showMouseIndicator: true,
+                    showHud: true,
+                    pauseWhenHidden: true,
+                    maxFps: 0,
+                });
+        }
+    }
+
+    performanceToggleRows = computed<ToggleRow[]>(() => [
+        {
+            name: 'Sprite Rendering',
+            description:
+                'Uses pre-rendered particle sprites for speed. Turn off for smoother anti-aliased circles (helps jitter).',
+            obj: this.app().performance as unknown as Record<string, boolean>,
+            key: 'useSpriteRendering',
+            id: 'performance-use-sprite-rendering',
+        },
+        {
+            name: 'Snap Sprites To Pixels',
+            description:
+                'Rounds sprite draw positions to pixel grid. Can sharpen sprites but may look jittery during motion.',
+            obj: this.app().performance as unknown as Record<string, boolean>,
+            key: 'snapSpritesToPixels',
+            id: 'performance-snap-sprites',
+        },
+        {
+            name: 'Reuse Particle Pool',
+            description: 'Reuses allocated particle objects on restart to reduce GC pressure.',
+            obj: this.app().performance as unknown as Record<string, boolean>,
+            key: 'reuseParticlePool',
+            id: 'performance-reuse-particle-pool',
+        },
+        {
+            name: 'Reuse Spatial Buckets',
+            description: 'Reuses neighbor search buckets each frame to reduce allocations.',
+            obj: this.app().performance as unknown as Record<string, boolean>,
+            key: 'reuseSpatialBuckets',
+            id: 'performance-reuse-spatial-buckets',
+        },
+        {
+            name: 'Pause In Background Tab',
+            description: 'Stops simulation updates while tab is hidden to save resources.',
+            obj: this.app().performance as unknown as Record<string, boolean>,
+            key: 'pauseWhenHidden',
+            id: 'performance-pause-hidden',
+        },
+        {
+            name: 'Show Mouse Indicator',
+            description: 'Renders the interaction ring and cursor marker.',
+            obj: this.app().performance as unknown as Record<string, boolean>,
+            key: 'showMouseIndicator',
+            id: 'performance-show-mouse-indicator',
+        },
+        {
+            name: 'Show HUD Overlay',
+            description: 'Renders text HUD labels on the canvas.',
+            obj: this.app().performance as unknown as Record<string, boolean>,
+            key: 'showHud',
+            id: 'performance-show-hud',
         },
     ]);
 
