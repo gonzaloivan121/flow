@@ -88,6 +88,7 @@ export interface Coloring {
 
 export interface PerformanceSettings {
     useSpriteRendering: boolean;
+    enableParticleGlow: boolean;
     snapSpritesToPixels: boolean;
     reuseParticlePool: boolean;
     reuseSpatialBuckets: boolean;
@@ -156,6 +157,7 @@ export class FluidSimulationApp implements IApplication {
 
     public performance: PerformanceSettings = {
         useSpriteRendering: false,
+        enableParticleGlow: false,
         snapSpritesToPixels: false,
         reuseParticlePool: true,
         reuseSpatialBuckets: true,
@@ -188,6 +190,7 @@ export class FluidSimulationApp implements IApplication {
             wallFriction: 0.7,
             globalDamping: 0.95,
         });
+        
         Object.assign(this.physics.gravity, { x: 0, y: 9.81 });
 
         Object.assign(this.simulation, {
@@ -211,7 +214,8 @@ export class FluidSimulationApp implements IApplication {
         Object.assign(this.coloring.fastColor, this.defaultColoring.fastColor);
         Object.assign(this.coloring.backgroundColor, this.defaultColoring.backgroundColor);
         Object.assign(this.performance, {
-            useSpriteRendering: false,
+            useSpriteRendering: true,
+            enableParticleGlow: true,
             snapSpritesToPixels: false,
             reuseParticlePool: true,
             reuseSpatialBuckets: true,
@@ -645,9 +649,11 @@ export class FluidSimulationApp implements IApplication {
     }
 
     private EnsureParticleSprites(radius: number): void {
-        const diameter = Math.max(2, Math.ceil(radius * 2) + 2);
+        const glowEnabled = this.performance.enableParticleGlow;
+        const glowPadding = glowEnabled ? Math.max(3, Math.ceil(radius * 1.2)) : 0;
+        const diameter = Math.max(2, Math.ceil(radius * 2) + glowPadding * 2);
         const offset = diameter / 2;
-        const cacheKey = `${this.gradientKey}|${diameter}`;
+        const cacheKey = `${this.gradientKey}|${diameter}|${glowEnabled ? 'glow' : 'flat'}`;
 
         if (cacheKey === this.spriteCacheKey) {
             return;
@@ -670,7 +676,46 @@ export class FluidSimulationApp implements IApplication {
             }
 
             spriteCtx.clearRect(0, 0, diameter, diameter);
-            spriteCtx.fillStyle = this.gradientColors[i];
+            const color = this.gradientColors[i];
+
+            if (glowEnabled) {
+                const halo = spriteCtx.createRadialGradient(
+                    offset,
+                    offset,
+                    radius * 0.3,
+                    offset,
+                    offset,
+                    radius + glowPadding,
+                );
+                halo.addColorStop(0, 'rgba(255, 255, 255, 0.28)');
+                halo.addColorStop(0.45, color);
+                halo.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+                spriteCtx.fillStyle = halo;
+                spriteCtx.beginPath();
+                spriteCtx.arc(offset, offset, radius + glowPadding, 0, 2 * Math.PI);
+                spriteCtx.fill();
+
+                const core = spriteCtx.createRadialGradient(
+                    offset - radius * 0.25,
+                    offset - radius * 0.3,
+                    radius * 0.1,
+                    offset,
+                    offset,
+                    radius,
+                );
+                core.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+                core.addColorStop(0.35, color);
+                core.addColorStop(1, color);
+
+                spriteCtx.fillStyle = core;
+                spriteCtx.beginPath();
+                spriteCtx.arc(offset, offset, radius, 0, 2 * Math.PI);
+                spriteCtx.fill();
+                continue;
+            }
+
+            spriteCtx.fillStyle = color;
             spriteCtx.beginPath();
             spriteCtx.arc(offset, offset, radius, 0, 2 * Math.PI);
             spriteCtx.fill();
@@ -813,16 +858,44 @@ export class FluidSimulationApp implements IApplication {
     }
 
     private DrawParticlesPath(ctx: CanvasRenderingContext2D): void {
+        const glowEnabled = this.performance.enableParticleGlow;
+
+        ctx.save();
+        if (glowEnabled) {
+            ctx.globalCompositeOperation = 'lighter';
+        }
+
         for (let i = 0; i < this.particles.length; i++) {
             const particle = this.particles[i];
             this.DrawParticle(ctx, particle);
         }
+
+        ctx.restore();
     }
 
     private DrawParticle(ctx: CanvasRenderingContext2D, particle: Particle): void {
+        const color = this.gradientColors[particle.colorIndex];
+        const glowEnabled = this.performance.enableParticleGlow;
+
+        ctx.fillStyle = color;
         ctx.beginPath();
         ctx.arc(particle.position.x, particle.position.y, particle.radius, 0, 2 * Math.PI);
-        ctx.fillStyle = this.gradientColors[particle.colorIndex];
+        ctx.fill();
+
+        if (!glowEnabled) {
+            return;
+        }
+
+        // Small highlight adds depth when glow rendering is enabled.
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.24)';
+        ctx.beginPath();
+        ctx.arc(
+            particle.position.x - particle.radius * 0.25,
+            particle.position.y - particle.radius * 0.25,
+            Math.max(1, particle.radius * 0.35),
+            0,
+            2 * Math.PI,
+        );
         ctx.fill();
     }
 
@@ -834,9 +907,7 @@ export class FluidSimulationApp implements IApplication {
         const mousePosition: Vector2 = this.input.MousePosition();
         const radius: number = this.interaction.mouseRadius;
         const isInteracting: boolean = this.input.MouseDown();
-        const indicatorCss: string = isInteracting
-            ? this.cachedActiveCss
-            : this.cachedHoverCss;
+        const indicatorCss: string = isInteracting ? this.cachedActiveCss : this.cachedHoverCss;
         const indicatorFillCss: string = isInteracting
             ? this.cachedActiveFillCss
             : this.cachedHoverFillCss;
@@ -906,9 +977,11 @@ export class FluidSimulationApp implements IApplication {
         const statusFill = isInteracting
             ? 'rgba(248, 113, 113, 0.18)'
             : isHovering
-                ? 'rgba(56, 189, 248, 0.18)'
-                : 'rgba(148, 163, 184, 0.12)';
-        const statusText = isInteracting ? 'rgba(254, 226, 226, 0.96)' : 'rgba(226, 232, 240, 0.95)';
+              ? 'rgba(56, 189, 248, 0.18)'
+              : 'rgba(148, 163, 184, 0.12)';
+        const statusText = isInteracting
+            ? 'rgba(254, 226, 226, 0.96)'
+            : 'rgba(226, 232, 240, 0.95)';
 
         this.RoundRect(ctx, x + 166, y + 18, 84, 22, 11);
         ctx.fillStyle = statusFill;
@@ -916,8 +989,8 @@ export class FluidSimulationApp implements IApplication {
         ctx.strokeStyle = isInteracting
             ? 'rgba(248, 113, 113, 0.26)'
             : isHovering
-                ? 'rgba(56, 189, 248, 0.26)'
-                : 'rgba(148, 163, 184, 0.16)';
+              ? 'rgba(56, 189, 248, 0.26)'
+              : 'rgba(148, 163, 184, 0.16)';
         ctx.stroke();
         ctx.fillStyle = statusText;
         ctx.font = '700 10px "Segoe UI", system-ui, sans-serif';
