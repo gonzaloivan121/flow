@@ -6,7 +6,7 @@ import { SidebarComponent } from '../sidebar/sidebar.component';
 import { ViewportComponent } from '../viewport/viewport.component';
 
 import { SplitterModule } from 'primeng/splitter';
-import { FluidSimulationApp } from '../../classes/fluid-simulation.app';
+import { FluidSimulationApp } from '../../classes/fluid-simulation/fluid-simulation.app';
 import { SimulationPersistenceService } from '../../services/simulation-persistence/simulation-persistence.service';
 
 @Component({

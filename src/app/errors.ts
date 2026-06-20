@@ -59,14 +59,40 @@ export class NotFoundError extends BaseError {
 }
 
 /**
- * Thrown when an attempt is made to update a resource that cannot be updated due to business rules or constraints.
+ * Thrown when an attempt is made to invoke a method or access a property that has not been implemented.
  *
  * @export
- * @class CantUpdateError
+ * @class NotImplementedError
  * @extends {BaseError}
  */
-export class CantUpdateError extends BaseError {
+export class NotImplementedError extends BaseError {
     constructor(message: string) {
         super(400, message);
+    }
+}
+
+/**
+ * Thrown when an attempt is made to access a resource that is not initialized or ready for use.
+ *
+ * @export
+ * @class NotInitializedError
+ * @extends {BaseError}
+ */
+export class NotInitializedError extends BaseError {
+    constructor(message: string) {
+        super(500, message);
+    }
+}
+
+/**
+ * Thrown when an attempt is made to initialize a resource that has already been initialized.
+ *
+ * @export
+ * @class AlreadyInitializedError
+ * @extends {BaseError}
+ */
+export class AlreadyInitializedError extends BaseError {
+    constructor(message: string) {
+        super(600, message);
     }
 }

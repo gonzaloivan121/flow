@@ -7,7 +7,7 @@ import {
     PerformanceSettings,
     Physics,
     Simulation,
-} from '../../classes/fluid-simulation.app';
+} from '../../classes/fluid-simulation/fluid-simulation.app';
 import { SessionKeys, SessionService } from '../session/session.service';
 
 @Injectable({

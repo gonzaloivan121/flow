@@ -11,8 +11,8 @@ import {
     input,
 } from '@angular/core';
 
-import { Engine } from '../../classes/engine';
-import { FluidSimulationApp } from '../../classes/fluid-simulation.app';
+import { Engine } from '../../classes/core/engine';
+import { FluidSimulationApp } from '../../classes/fluid-simulation/fluid-simulation.app';
 
 @Component({
     selector: 'app-viewport',

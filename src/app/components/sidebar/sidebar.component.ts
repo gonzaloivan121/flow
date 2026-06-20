@@ -9,7 +9,7 @@ import { TooltipModule } from 'primeng/tooltip';
 import { ColorPickerModule } from 'primeng/colorpicker';
 import { CheckboxModule } from 'primeng/checkbox';
 
-import { FluidSimulationApp, RgbColor } from '../../classes/fluid-simulation.app';
+import { FluidSimulationApp, RgbColor } from '../../classes/fluid-simulation/fluid-simulation.app';
 
 interface Row {
     name: string;
