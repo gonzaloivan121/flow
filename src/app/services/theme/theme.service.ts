@@ -10,8 +10,8 @@ import { SessionKeys, SessionService } from '../session/session.service';
  * @enum {number}
  */
 export enum ThemeMode {
-    Light,
-    Dark,
+    Light = 'Light',
+    Dark = 'Dark',
 }
 
 /**

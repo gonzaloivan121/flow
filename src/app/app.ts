@@ -17,10 +17,27 @@ export class App implements OnInit {
     private sessionService: SessionService = inject(SessionService);
 
     ngOnInit(): void {
-        const savedThemeMode = this.sessionService.Get(SessionKeys.ThemeMode) as keyof typeof ThemeMode;
+        this.ApplyDarkMode();
+        this.ApplySavedThemeMode();
+    }
 
-        if (savedThemeMode) {
-            this.themeService.SetThemeMode(ThemeMode[savedThemeMode]);
+    private ApplyDarkMode(): void {
+        this.themeService.SetThemeMode(ThemeMode.Dark);
+    }
+
+    private ApplySavedThemeMode(): void {
+        if (!this.sessionService.Has(SessionKeys.ThemeMode)) {
+            return;
         }
+
+        const savedThemeModeStr = this.sessionService.Get(SessionKeys.ThemeMode);
+
+        
+        if (!savedThemeModeStr) {
+            return;
+        }
+        
+        const savedThemeMode = savedThemeModeStr as keyof typeof ThemeMode;
+        this.themeService.SetThemeMode(ThemeMode[savedThemeMode]);
     }
 }
