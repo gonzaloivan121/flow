@@ -37,9 +37,11 @@ interface ToggleRow {
     id: string;
 }
 
+type PerformancePresetValue = 'default' | 'quality' | 'balanced' | 'smooth' | 'throughput';
+
 interface PerformancePreset {
     label: string;
-    value: string;
+    value: PerformancePresetValue;
     description: string;
 }
 
@@ -62,9 +64,21 @@ export class SidebarComponent {
     readonly app = input.required<FluidSimulationApp>();
     readonly performancePresets: PerformancePreset[] = [
         {
+            label: 'Default',
+            value: 'default',
+            description:
+                'The original default settings optimized for visual quality and a smooth experience on mid-range devices.',
+        },
+        {
+            label: 'Quality',
+            value: 'quality',
+            description: 'Maximizes visual fidelity with the most expensive rendering options enabled. May reduce frame rates on less powerful hardware.',
+        },
+        {
             label: 'Balanced',
             value: 'balanced',
-            description: 'Keeps the smoother default rendering path and balanced simulation throughput.',
+            description:
+                'Keeps the smoother default rendering path and balanced simulation throughput.',
         },
         {
             label: 'Smooth',
@@ -74,16 +88,18 @@ export class SidebarComponent {
         {
             label: 'Max Throughput',
             value: 'throughput',
-            description: 'Turns on the fastest rendering and trims extra overlays for raw performance.',
+            description:
+                'Turns on the fastest rendering and trims extra overlays for raw performance.',
         },
     ];
 
-    selectedPerformancePreset = 'balanced';
+    selectedPerformancePreset: PerformancePresetValue = 'default';
 
     GetSelectedPerformancePreset(): PerformancePreset {
         return (
-            this.performancePresets.find((preset) => preset.value === this.selectedPerformancePreset) ??
-            this.performancePresets[0]
+            this.performancePresets.find(
+                (preset) => preset.value === this.selectedPerformancePreset,
+            ) ?? this.performancePresets[0]
         );
     }
 
@@ -309,13 +325,40 @@ export class SidebarComponent {
         },
     ]);
 
-    ApplyPerformancePreset(preset: string): void {
+    ApplyPerformancePreset(preset: PerformancePresetValue): void {
         const performance = this.app().performance;
 
         switch (preset) {
+            case 'balanced':
+                Object.assign(performance, {
+                    useSpriteRendering: true,
+                    enableParticleGlow: false,
+                    snapSpritesToPixels: false,
+                    reuseParticlePool: true,
+                    reuseSpatialBuckets: true,
+                    showMouseIndicator: true,
+                    showHud: true,
+                    pauseWhenHidden: true,
+                    maxFps: 0,
+                });
+                return;
+            case 'quality':
+                Object.assign(performance, {
+                    useSpriteRendering: false,
+                    enableParticleGlow: true,
+                    snapSpritesToPixels: false,
+                    reuseParticlePool: true,
+                    reuseSpatialBuckets: true,
+                    showMouseIndicator: true,
+                    showHud: true,
+                    pauseWhenHidden: true,
+                    maxFps: 0,
+                });
+                return;
             case 'smooth':
                 Object.assign(performance, {
                     useSpriteRendering: false,
+                    enableParticleGlow: true,
                     snapSpritesToPixels: false,
                     reuseParticlePool: true,
                     reuseSpatialBuckets: true,
@@ -328,6 +371,7 @@ export class SidebarComponent {
             case 'throughput':
                 Object.assign(performance, {
                     useSpriteRendering: true,
+                    enableParticleGlow: false,
                     snapSpritesToPixels: true,
                     reuseParticlePool: true,
                     reuseSpatialBuckets: true,
@@ -340,6 +384,7 @@ export class SidebarComponent {
             default:
                 Object.assign(performance, {
                     useSpriteRendering: false,
+                    enableParticleGlow: false,
                     snapSpritesToPixels: false,
                     reuseParticlePool: true,
                     reuseSpatialBuckets: true,
@@ -359,6 +404,14 @@ export class SidebarComponent {
             obj: this.app().performance as unknown as Record<string, boolean>,
             key: 'useSpriteRendering',
             id: 'performance-use-sprite-rendering',
+        },
+        {
+            name: 'Enable Particle Glow',
+            description:
+                'Adds halo and highlight passes for brighter particles. Disable for a flatter, cheaper render path.',
+            obj: this.app().performance as unknown as Record<string, boolean>,
+            key: 'enableParticleGlow',
+            id: 'performance-enable-particle-glow',
         },
         {
             name: 'Snap Sprites To Pixels',
