@@ -1,4 +1,4 @@
-import type { FluidSimulationApp, RgbColor } from './fluid-simulation.app';
+import type { FluidSimulationApp, RGBColor } from './fluid-simulation.app';
 import { Input } from '../core/input';
 import { Renderer } from '../core/renderer';
 
@@ -18,32 +18,38 @@ export class FluidRenderer {
     private static surfaceColorKey = '';
 
     static RefreshColorCaches(app: FluidSimulationApp): void {
-        app.coloring.slowColor = this.NormalizeRgbColor(app.coloring.slowColor, {
+        app.coloring.slowColor = this.NormalizeRGBColor(app.coloring.slowColor, {
             r: 56,
             g: 189,
             b: 248,
         });
-        app.coloring.fastColor = this.NormalizeRgbColor(app.coloring.fastColor, {
+        
+        app.coloring.fastColor = this.NormalizeRGBColor(app.coloring.fastColor, {
             r: 255,
             g: 242,
             b: 248,
         });
-        app.coloring.backgroundColor = this.NormalizeRgbColor(app.coloring.backgroundColor, {
+
+        app.coloring.backgroundColor = this.NormalizeRGBColor(app.coloring.backgroundColor, {
             r: 15,
             g: 23,
             b: 42,
         });
 
-        app.interaction.mouseHoverColor = this.NormalizeRgbColor(app.interaction.mouseHoverColor, {
+        app.interaction.mouseHoverColor = this.NormalizeRGBColor(app.interaction.mouseHoverColor, {
             r: 56,
             g: 189,
             b: 248,
         });
-        app.interaction.mouseActiveColor = this.NormalizeRgbColor(app.interaction.mouseActiveColor, {
-            r: 248,
-            g: 113,
-            b: 113,
-        });
+
+        app.interaction.mouseActiveColor = this.NormalizeRGBColor(
+            app.interaction.mouseActiveColor,
+            {
+                r: 248,
+                g: 113,
+                b: 113,
+            },
+        );
 
         const slow = app.coloring.slowColor;
         const fast = app.coloring.fastColor;
@@ -139,7 +145,10 @@ export class FluidRenderer {
         Renderer.Restore();
     }
 
-    private static DrawParticle(app: FluidSimulationApp, particle: FluidSimulationApp['particles'][number]): void {
+    private static DrawParticle(
+        app: FluidSimulationApp,
+        particle: FluidSimulationApp['particles'][number],
+    ): void {
         const color = this.gradientColors[particle.colorIndex];
         Renderer.DrawCircle(particle.position.x, particle.position.y, particle.radius, color);
 
@@ -167,7 +176,14 @@ export class FluidRenderer {
         const indicatorFillCss = isInteracting ? this.cachedActiveFillCss : this.cachedHoverFillCss;
 
         Renderer.Save();
-        Renderer.DrawCircle(mousePosition.x, mousePosition.y, radius, indicatorFillCss, indicatorCss, 2);
+        Renderer.DrawCircle(
+            mousePosition.x,
+            mousePosition.y,
+            radius,
+            indicatorFillCss,
+            indicatorCss,
+            2,
+        );
         Renderer.DrawCircle(mousePosition.x, mousePosition.y, 3, indicatorCss);
         Renderer.Restore();
     }
@@ -257,7 +273,7 @@ export class FluidRenderer {
         return Math.max(0, Math.min(255, Math.round(value)));
     }
 
-    private static NormalizeRgbColor(value: unknown, fallback: RgbColor): RgbColor {
+    private static NormalizeRGBColor(value: unknown, fallback: RGBColor): RGBColor {
         if (typeof value === 'object' && value !== null) {
             const channelRecord = value as Record<string, unknown>;
             const r = channelRecord['r'];
@@ -278,7 +294,7 @@ export class FluidRenderer {
                 b >= 0 &&
                 b <= 255
             ) {
-                return value as RgbColor;
+                return value as RGBColor;
             }
 
             return {

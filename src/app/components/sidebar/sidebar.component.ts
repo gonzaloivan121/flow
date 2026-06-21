@@ -9,7 +9,7 @@ import { TooltipModule } from 'primeng/tooltip';
 import { ColorPickerModule } from 'primeng/colorpicker';
 import { CheckboxModule } from 'primeng/checkbox';
 
-import { FluidSimulationApp, RgbColor } from '../../classes/fluid-simulation/fluid-simulation.app';
+import { FluidSimulationApp, RGBColor } from '../../classes/fluid-simulation/fluid-simulation.app';
 
 interface Row {
     name: string;
@@ -25,7 +25,7 @@ interface Row {
 interface ColorRow {
     name: string;
     description: string;
-    obj: Record<string, RgbColor>;
+    obj: Record<string, RGBColor>;
     key: string;
 }
 
@@ -72,7 +72,8 @@ export class SidebarComponent {
         {
             label: 'Quality',
             value: 'quality',
-            description: 'Maximizes visual fidelity with the most expensive rendering options enabled. May reduce frame rates on less powerful hardware.',
+            description:
+                'Maximizes visual fidelity with the most expensive rendering options enabled. May reduce frame rates on less powerful hardware.',
         },
         {
             label: 'Balanced',
@@ -462,31 +463,31 @@ export class SidebarComponent {
         {
             name: 'Slow Color',
             description: 'Particle color at rest or low speed.',
-            obj: this.app().coloring as unknown as Record<string, RgbColor>,
+            obj: this.app().coloring as unknown as Record<string, RGBColor>,
             key: 'slowColor',
         },
         {
             name: 'Fast Color',
             description: 'Particle color blended towards at high speed.',
-            obj: this.app().coloring as unknown as Record<string, RgbColor>,
+            obj: this.app().coloring as unknown as Record<string, RGBColor>,
             key: 'fastColor',
         },
         {
             name: 'Background Color',
             description: 'Canvas background fill color.',
-            obj: this.app().coloring as unknown as Record<string, RgbColor>,
+            obj: this.app().coloring as unknown as Record<string, RGBColor>,
             key: 'backgroundColor',
         },
         {
             name: 'Hover Radius Color',
             description: 'Color of the mouse radius ring while hovering over the canvas.',
-            obj: this.app().interaction as unknown as Record<string, RgbColor>,
+            obj: this.app().interaction as unknown as Record<string, RGBColor>,
             key: 'mouseHoverColor',
         },
         {
             name: 'Active Radius Color',
             description: 'Color of the mouse radius ring while the mouse button is held down.',
-            obj: this.app().interaction as unknown as Record<string, RgbColor>,
+            obj: this.app().interaction as unknown as Record<string, RGBColor>,
             key: 'mouseActiveColor',
         },
     ]);

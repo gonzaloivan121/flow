@@ -65,14 +65,33 @@ export interface Interaction {
     mouseRadius: number;
     mouseForce: number;
     colorIntensity: number;
-    mouseHoverColor: RgbColor;
-    mouseActiveColor: RgbColor;
+    mouseHoverColor: RGBColor;
+    mouseActiveColor: RGBColor;
 }
 
-export interface RgbColor {
+/**
+ * Color representation without alpha channel.
+ *
+ * @export
+ * @interface RGBColor
+ */
+export interface RGBColor {
     r: number;
     g: number;
     b: number;
+}
+
+/**
+ * Color representation with alpha channel for opacity.
+ *
+ * @export
+ * @interface RGBAColor
+ */
+export interface RGBAColor {
+    r: number;
+    g: number;
+    b: number;
+    a: number;
 }
 
 /**
@@ -83,9 +102,9 @@ export interface RgbColor {
  * @interface Coloring
  */
 export interface Coloring {
-    slowColor: RgbColor; // Particle color at rest / low speed
-    fastColor: RgbColor; // Particle color at maximum speed
-    backgroundColor: RgbColor; // Canvas background fill color
+    slowColor: RGBColor; // Particle color at rest / low speed
+    fastColor: RGBColor; // Particle color at maximum speed
+    backgroundColor: RGBColor; // Canvas background fill color
 }
 
 export interface PerformanceSettings {
