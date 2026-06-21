@@ -1,4 +1,9 @@
-import { AlreadyInitializedError, InvalidArgumentError, NotInitializedError } from '../../errors';
+import {
+    AlreadyInitializedError,
+    InvalidArgumentError,
+    InvalidStateError,
+    NotInitializedError,
+} from '../../errors';
 
 /**
  * Interface defining the options for drawing text with the `Renderer`.
@@ -46,7 +51,27 @@ interface TextOptions {
  * @class Renderer
  */
 export class Renderer {
+    /**
+     * The canvas rendering context used for all drawing operations.
+     *
+     * This is set during initialization and should not be accessed directly outside of the `Renderer` class.
+     *
+     * @private
+     * @static
+     * @type {(CanvasRenderingContext2D | null)}
+     * @memberof Renderer
+     */
     private static context: CanvasRenderingContext2D | null = null;
+
+    /**
+     * A flag to track whether the canvas context state has been saved with `Save()` and not yet restored with `Restore()`.
+     *
+     * @private
+     * @static
+     * @type {boolean}
+     * @memberof Renderer
+     */
+    private static isContextSaved: boolean = false;
 
     /**
      * Initializes the `Renderer` by setting the provided canvas rendering context and configuring default settings.
@@ -60,12 +85,14 @@ export class Renderer {
     static Initialize(context: CanvasRenderingContext2D): void {
         if (!context) {
             throw new InvalidArgumentError(
-                'Invalid canvas context provided for renderer initialization',
+                'Invalid canvas context provided for Renderer initialization. Please ensure that a valid CanvasRenderingContext2D is passed to Renderer.Initialize().',
             );
         }
 
         if (this.context) {
-            throw new AlreadyInitializedError('Renderer is already initialized');
+            throw new AlreadyInitializedError(
+                'Renderer is already initialized. Please call Renderer.Shutdown() before initializing again.',
+            );
         }
 
         this.context = context;
@@ -77,37 +104,60 @@ export class Renderer {
      * After calling this method, the `Renderer` will need to be re-initialized before it can be used again.
      *
      * @static
+     * @throws {NotInitializedError} If the `Renderer` is not currently initialized.
      * @memberof Renderer
      */
     static Shutdown(): void {
+        if (!this.context) {
+            throw new NotInitializedError(
+                'Renderer has not been initialized. Please call Renderer.Initialize() with a valid canvas context before using the Renderer.',
+            );
+        }
+
         this.context = null;
     }
 
     /**
      * Saves the current state of the canvas context, allowing it to be restored later with `Restore()`.
-     * 
+     *
      * This is useful for temporarily changing drawing settings or transformations and then reverting back to the previous state.
      * It is important to ensure that `Restore()` is called after `Save()` to avoid errors due to an empty state stack.
      *
      * @static
+     * @throws {InvalidStateError} If the context state is already saved and has not been restored yet.
      * @memberof Renderer
      */
     static Save(): void {
+        if (this.isContextSaved) {
+            throw new InvalidStateError(
+                'Context state is already saved. Please check that Restore() is called after Save().',
+            );
+        }
+
         this.GetContext().save();
+        this.isContextSaved = true;
     }
 
     /**
      * Restores the canvas context to the last saved state.
-     * 
+     *
      * If there is no saved state, this will throw an error. It is important to ensure that `Save()` has been called before calling `Restore()`.
      * This is useful for temporarily changing drawing settings or transformations and then reverting back to the previous state.
      * This should be used in conjunction with `Save()` to manage complex drawing states.
      *
      * @static
+     * @throws {InvalidStateError} If there is no saved context state to restore.
      * @memberof Renderer
      */
     static Restore(): void {
+        if (!this.isContextSaved) {
+            throw new InvalidStateError(
+                'No saved context state to restore. Please check that Save() is called before Restore().',
+            );
+        }
+
         this.GetContext().restore();
+        this.isContextSaved = false;
     }
 
     /**
@@ -218,7 +268,6 @@ export class Renderer {
         this.GetContext().drawImage(image, x, y);
     }
 
-
     /**
      * Draws a circle at the specified coordinates with the given radius, fill style, and optional stroke style and line width.
      *
@@ -309,12 +358,7 @@ export class Renderer {
      * @param {TextOptions} [options] - Optional drawing options for the text, including fill style, font, text alignment, and text baseline. If not provided, default settings will be used.
      * @memberof Renderer
      */
-    static DrawText(
-        text: string,
-        x: number,
-        y: number,
-        options?: TextOptions,
-    ): void {
+    static DrawText(text: string, x: number, y: number, options?: TextOptions): void {
         const ctx = this.GetContext();
 
         if (options?.fillStyle) {
@@ -376,7 +420,9 @@ export class Renderer {
      */
     private static GetContext(): CanvasRenderingContext2D {
         if (!this.context) {
-            throw new NotInitializedError('Renderer has not been initialized');
+            throw new NotInitializedError(
+                'Renderer has not been initialized. Please call Renderer.Initialize() with a valid canvas context before using the Renderer.',
+            );
         }
 
         return this.context;

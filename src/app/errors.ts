@@ -96,3 +96,16 @@ export class AlreadyInitializedError extends BaseError {
         super(600, message);
     }
 }
+
+/**
+ * Thrown when an operation is attempted that is not valid in the current state of the application or resource.
+ *
+ * @export
+ * @class InvalidStateError
+ * @extends {BaseError}
+ */
+export class InvalidStateError extends BaseError {
+    constructor(message: string) {
+        super(700, message);
+    }
+}
