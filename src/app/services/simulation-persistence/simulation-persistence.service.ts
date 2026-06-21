@@ -89,4 +89,54 @@ export class SimulationPersistenceService {
         this.sessionService.Remove(SessionKeys.ColoringData);
         this.sessionService.Remove(SessionKeys.PerformanceData);
     }
+
+    Export(app: FluidSimulationApp): void {
+        const exportData = {
+            physics: app.physics,
+            simulation: app.simulation,
+            interaction: app.interaction,
+            coloring: app.coloring,
+            performance: app.performance,
+        };
+
+        const dataStr = JSON.stringify(exportData, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'fluid-simulation-settings.json';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+
+    Import(file: File, app: FluidSimulationApp): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+
+            reader.onload = () => {
+                try {
+                    const importData = JSON.parse(reader.result as string);
+                    const { physics, simulation, interaction, coloring, performance } = importData;
+
+                    this.sessionService.SetJSON<Physics>(SessionKeys.PhysicsData, physics);
+                    this.sessionService.SetJSON<Simulation>(SessionKeys.SimulationData, simulation);
+                    this.sessionService.SetJSON<Interaction>(SessionKeys.InteractionData, interaction);
+                    this.sessionService.SetJSON<Coloring>(SessionKeys.ColoringData, coloring);
+                    this.sessionService.SetJSON<PerformanceSettings>(SessionKeys.PerformanceData, performance);
+
+                    this.Load(app);
+
+                    resolve();
+                } catch (error) {
+                    reject(new Error('Invalid file format'));
+                }
+            };
+
+            reader.onerror = () => reject(new Error('Failed to read file'));
+            reader.readAsText(file);
+        });
+    }
 }

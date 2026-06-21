@@ -1,30 +1,52 @@
 <p-toolbar styleClass="flow-toolbar border-none rounded-2xl px-3 py-2 shadow-none bg-transparent">
     <ng-template #start>
-        <div class="flex items-center gap-2">
-            <span class="text-xs uppercase tracking-[0.16em] opacity-70">Flow Studio</span>
-            <span class="h-1.5 w-1.5 rounded-full bg-cyan-400"></span>
-            <span class="text-xs opacity-80">PrimeNG + Tailwind</span>
+        <div class="flow-brand flex items-center gap-3">
+            <span class="flow-brand-dot" aria-hidden="true"></span>
+            <div class="flex flex-col leading-tight">
+                <span class="text-xs uppercase tracking-[0.16em] opacity-80">Flow Studio</span>
+                <span class="text-[0.7rem] opacity-65">Session Controls</span>
+            </div>
         </div>
     </ng-template>
 
     <ng-template #end>
-        <div class="flex items-center gap-2 flex-wrap justify-end">
-            @for (button of actionButtons; track button.command) {
-                <p-button
-                    [label]="button.label"
-                    [icon]="button.icon"
-                    [severity]="button.command === 'delete' ? 'danger' : 'secondary'"
-                    [outlined]="button.command !== 'delete'"
-                    [raised]="button.command === 'restart'"
-                    (onClick)="EmitCommand(button.command)"
-                />
-            }
+        <div class="flow-actions flex items-center gap-2 flex-wrap justify-end">
+            <div class="flow-action-group">
+                @for (button of actionButtons; track button.command) {
+                    <p-button
+                        [label]="button.label"
+                        [icon]="button.icon"
+                        [severity]="button.command === 'delete' ? 'danger' : 'secondary'"
+                        [outlined]="true"
+                        size="small"
+                        (onClick)="EmitCommand(button.command)"
+                    />
+                }
+            </div>
+
+            <p-fileupload
+                mode="basic"
+                name="simulation-settings"
+                chooseLabel="Import"
+                chooseIcon="pi pi-file-import"
+                accept=".json,application/json"
+                [auto]="true"
+                [customUpload]="true"
+                [multiple]="false"
+                [maxFileSize]="1048576"
+                [showCancelButton]="false"
+                [showUploadButton]="false"
+                [chooseButtonProps]="{ severity: 'secondary', outlined: true, size: 'small' }"
+                styleClass="flow-import-upload"
+                (uploadHandler)="HandleImportUpload($event)"
+            />
 
             <p-button
                 [icon]="themeModeIcon()"
                 severity="contrast"
                 rounded="true"
                 [outlined]="true"
+                size="small"
                 (onClick)="EmitCommand('toggle-theme')"
                 ariaLabel="Toggle theme"
             />

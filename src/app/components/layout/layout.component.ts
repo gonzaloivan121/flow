@@ -32,6 +32,7 @@ export class LayoutComponent implements OnInit {
             case 'load':    this.Load();    return;
             case 'delete':  this.Delete();  return;
             case 'restart': this.Restart(); return;
+            case 'export':  this.Export();  return;
         }
     }
 
@@ -50,6 +51,14 @@ export class LayoutComponent implements OnInit {
 
     private Restart(): void {
         this.viewport()?.RestartSimulation();
+    }
+
+    private Export(): void {
+        this.simulationPersistence.Export(this.app);
+    }
+
+    Import(file: File): void {
+        this.simulationPersistence.Import(file, this.app);
     }
 
     private Reset(): void {
