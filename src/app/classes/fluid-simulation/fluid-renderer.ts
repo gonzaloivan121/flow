@@ -1,4 +1,4 @@
-import type { FluidSimulationApp, RGBColor } from './fluid-simulation.app';
+import type { FluidSimulationApp, Particle, RGBColor } from './fluid-simulation.app';
 import { Input } from '../core/input';
 import { Renderer } from '../core/renderer';
 
@@ -6,11 +6,11 @@ export class FluidRenderer {
     private static readonly COLOR_STEPS = 256;
 
     private static gradientColors: string[] = new Array<string>(FluidRenderer.COLOR_STEPS);
-    private static cachedBackgroundCss = 'rgb(15, 23, 42)';
-    private static cachedHoverCss = 'rgb(56, 189, 248)';
-    private static cachedHoverFillCss = 'rgba(56, 189, 248, 0.14)';
-    private static cachedActiveCss = 'rgb(248, 113, 113)';
-    private static cachedActiveFillCss = 'rgba(248, 113, 113, 0.14)';
+    private static cachedBackgroundCss = Renderer.RGBToCSS(15, 23, 42);
+    private static cachedHoverCss = Renderer.RGBToCSS(56, 189, 248);
+    private static cachedHoverFillCss = Renderer.RGBToRGBA(56, 189, 248, 0.14);
+    private static cachedActiveCss = Renderer.RGBToCSS(248, 113, 113);
+    private static cachedActiveFillCss = Renderer.RGBToRGBA(248, 113, 113, 0.14);
     private static particleSprites: HTMLCanvasElement[] = new Array(FluidRenderer.COLOR_STEPS);
     private static spriteCacheKey = '';
     private static spriteOffset = 0;
@@ -23,7 +23,7 @@ export class FluidRenderer {
             g: 189,
             b: 248,
         });
-        
+
         app.coloring.fastColor = this.NormalizeRGBColor(app.coloring.fastColor, {
             r: 255,
             g: 242,
@@ -61,7 +61,7 @@ export class FluidRenderer {
                 const r = Math.round(slow.r + (fast.r - slow.r) * t);
                 const g = Math.round(slow.g + (fast.g - slow.g) * t);
                 const b = Math.round(slow.b + (fast.b - slow.b) * t);
-                this.gradientColors[i] = `rgb(${r}, ${g}, ${b})`;
+                this.gradientColors[i] = Renderer.RGBToCSS(r, g, b);
             }
 
             this.gradientKey = gradientKey;
@@ -147,7 +147,7 @@ export class FluidRenderer {
 
     private static DrawParticle(
         app: FluidSimulationApp,
-        particle: FluidSimulationApp['particles'][number],
+        particle: Particle,
     ): void {
         const color = this.gradientColors[particle.colorIndex];
         Renderer.DrawCircle(particle.position.x, particle.position.y, particle.radius, color);
@@ -160,7 +160,7 @@ export class FluidRenderer {
             particle.position.x - particle.radius * 0.25,
             particle.position.y - particle.radius * 0.25,
             Math.max(1, particle.radius * 0.35),
-            'rgba(255, 255, 255, 0.24)',
+            Renderer.RGBToRGBA(255, 255, 255, 0.24),
         );
     }
 
@@ -227,9 +227,9 @@ export class FluidRenderer {
                     offset,
                     radius + glowPadding,
                 );
-                halo.addColorStop(0, 'rgba(255, 255, 255, 0.28)');
+                halo.addColorStop(0, Renderer.RGBToRGBA(255, 255, 255, 0.28));
                 halo.addColorStop(0.45, color);
-                halo.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                halo.addColorStop(1, Renderer.RGBToRGBA(255, 255, 255, 0));
 
                 spriteCtx.fillStyle = halo;
                 spriteCtx.beginPath();
@@ -244,7 +244,7 @@ export class FluidRenderer {
                     offset,
                     radius,
                 );
-                core.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+                core.addColorStop(0, Renderer.RGBToRGBA(255, 255, 255, 0.9));
                 core.addColorStop(0.35, color);
                 core.addColorStop(1, color);
 
